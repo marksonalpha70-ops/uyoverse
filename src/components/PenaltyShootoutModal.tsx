@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
+import { triggerCelebration } from '../utils/celebration';
 import { soundEngine } from '../utils/AudioSynthesizer';
 import { Trophy, Target, Shield, RefreshCw, X, Award } from 'lucide-react';
 
@@ -53,12 +53,7 @@ export const PenaltyShootoutModal: React.FC<PenaltyShootoutModalProps> = ({
       setLastResult(`GOAL! Struck into ${targetNames[selectedTarget]}! Crowds roar!`);
       setGoals((g) => g + 1);
       soundEngine.playCheckpointSound();
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#1fc16b', '#ffffff', '#f26522'],
-      });
+      triggerCelebration('goal');
     }
 
     if (nextAttempts >= 5) {

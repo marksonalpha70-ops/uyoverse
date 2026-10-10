@@ -21,6 +21,8 @@ export type RadioStation = 'uyo_fm' | 'dakkada_pulse' | 'heritage_fm';
 
 export type GraphicsQuality = 'low' | 'medium' | 'ultra';
 
+export type CelebrationEffectMode = 'subtle' | 'off' | 'full';
+
 export type PhotoFilter = 'none' | 'golden' | 'neon' | 'vintage' | 'harmattan';
 
 export interface VehicleCustomization {

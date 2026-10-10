@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
-import confetti from 'canvas-confetti';
+import { triggerCelebration } from '../utils/celebration';
 import {
   CameraMode,
   Landmark,
@@ -85,7 +85,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     isNitroActive: boolean;
     health: number;
   }>({
-    pos: new THREE.Vector3(0, 0.4, 15),
+    pos: new THREE.Vector3(0, 0.4, 75),
     rotY: 0,
     speed: 0,
     steering: 0,
@@ -109,7 +109,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     isJumping: boolean;
     verticalVelocity: number;
   }>({
-    pos: new THREE.Vector3(2, 0, 18),
+    pos: new THREE.Vector3(2, 0, 78),
     rotY: 0,
     speed: 0,
     isWalking: false,
@@ -119,40 +119,35 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   });
 
   const keysPressed = useRef<{ [key: string]: boolean }>({});
+  const mountTimeRef = useRef<number>(Date.now());
 
   // Landmark proximity check trigger
   const checkProximity = useCallback(
     (currentPos: THREE.Vector3) => {
+      // Prevent premature triggering on initial mount
+      const isInitialMount = Date.now() - mountTimeRef.current < 2000;
+
       // Mission proximity
-      if (activeMission && !activeMission.completed) {
+      if (activeMission && !activeMission.completed && !isInitialMount) {
         const targetLandmark = UYO_LANDMARKS.find((l) => l.id === activeMission.targetLandmarkId);
         if (targetLandmark) {
           const dist = Math.hypot(currentPos.x - targetLandmark.position[0], currentPos.z - targetLandmark.position[2]);
           if (dist < 26) {
             onMissionComplete(activeMission.id);
             soundEngine.playCheckpointSound();
-            confetti({
-              particleCount: 85,
-              spread: 75,
-              origin: { y: 0.6 },
-              colors: ['#1fc16b', '#f26522', '#ffffff', '#ff8c42'],
-            });
+            triggerCelebration('mission');
           }
         }
       }
 
       // Collectibles proximity
       artifacts.forEach((art) => {
-        if (!art.collected) {
+        if (!art.collected && !isInitialMount) {
           const dist = Math.hypot(currentPos.x - art.position[0], currentPos.z - art.position[2]);
           if (dist < 8) {
             onCollectArtifact(art.id);
             soundEngine.playArtifactChime();
-            confetti({
-              particleCount: 50,
-              spread: 60,
-              colors: ['#38bdf8', '#f26522', '#1fc16b'],
-            });
+            triggerCelebration('relic');
           }
         }
       });
@@ -972,7 +967,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }
       } else if (e.key.toLowerCase() === 'r') {
-        vehicleStateRef.current.pos.set(0, 0.4, 15);
+        vehicleStateRef.current.pos.set(0, 0.4, 75);
         vehicleStateRef.current.rotY = 0;
         vehicleStateRef.current.speed = 0;
       }

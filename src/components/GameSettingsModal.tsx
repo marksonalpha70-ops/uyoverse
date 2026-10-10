@@ -1,12 +1,15 @@
 import React from 'react';
-import { Settings, Volume2, VolumeX, Radio, RotateCcw, Monitor, Smartphone, X, Check } from 'lucide-react';
-import { GraphicsQuality, RadioStation } from '../types/game';
+import { Settings, Volume2, VolumeX, Radio, RotateCcw, Monitor, X, Check, Sparkles } from 'lucide-react';
+import { GraphicsQuality, CelebrationEffectMode } from '../types/game';
 import { soundEngine } from '../utils/AudioSynthesizer';
+import { triggerCelebration } from '../utils/celebration';
 
 interface GameSettingsModalProps {
   isOpen: boolean;
   graphicsQuality: GraphicsQuality;
+  celebrationMode: CelebrationEffectMode;
   onSetGraphicsQuality: (q: GraphicsQuality) => void;
+  onSetCelebrationMode: (m: CelebrationEffectMode) => void;
   onResetVehicle: () => void;
   onClose: () => void;
 }
@@ -14,7 +17,9 @@ interface GameSettingsModalProps {
 export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   isOpen,
   graphicsQuality,
+  celebrationMode,
   onSetGraphicsQuality,
+  onSetCelebrationMode,
   onResetVehicle,
   onClose,
 }) => {
@@ -122,6 +127,73 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
                   <span>{isRadioOn ? 'Radio Uyo: ON' : 'Radio Uyo: OFF'}</span>
                 </div>
               </button>
+            </div>
+          </div>
+
+          {/* Celebration FX (Confetti) */}
+          <div className="space-y-2.5 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <h4 className="font-orbitron font-bold text-xs text-white uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" /> Milestone Celebrations (Confetti)
+              </h4>
+              <button
+                type="button"
+                onClick={() => triggerCelebration('mission', celebrationMode)}
+                className="text-[10px] font-orbitron px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all flex items-center gap-1"
+                title="Preview celebration with current setting"
+              >
+                <span>Preview FX</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                {
+                  id: 'subtle',
+                  label: 'Subtle Sparkles',
+                  badge: 'Recommended',
+                  desc: 'Delicate corner flutter, 100% unobstructed view',
+                },
+                {
+                  id: 'off',
+                  label: 'Minimal / Off',
+                  badge: 'Clean HUD',
+                  desc: 'Completely disables confetti animations',
+                },
+                {
+                  id: 'full',
+                  label: 'Festive',
+                  badge: 'Full',
+                  desc: 'Standard celebratory bursts for milestones',
+                },
+              ].map((c) => {
+                const isActive = celebrationMode === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onSetCelebrationMode(c.id as CelebrationEffectMode);
+                      if (c.id !== 'off') {
+                        triggerCelebration('mission', c.id as CelebrationEffectMode);
+                      }
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      isActive
+                        ? 'bg-amber-500/20 border-amber-400 text-white ring-1 ring-amber-400/60'
+                        : 'bg-black/40 border-white/10 text-slate-300 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-orbitron font-bold text-xs">{c.label}</span>
+                      {isActive && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                    </div>
+                    <span className="inline-block mt-0.5 text-[9px] uppercase tracking-wider font-bold text-amber-400/90 font-mono">
+                      {c.badge}
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-snug">{c.desc}</p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

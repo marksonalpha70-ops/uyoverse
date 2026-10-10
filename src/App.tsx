@@ -33,7 +33,9 @@ import {
   VirtualProperty,
   FoodItem,
   GraphicsQuality,
+  CelebrationEffectMode,
 } from './types/game';
+import { getCelebrationMode, setCelebrationMode } from './utils/celebration';
 import {
   GAME_MISSIONS,
   UYO_LANDMARKS,
@@ -71,8 +73,22 @@ export default function App() {
   const [vehicleModel, setVehicleModel] = useState<VehicleModel>('taxi');
   const [unlockedModels, setUnlockedModels] = useState<string[]>(['taxi', 'keke']);
   const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('medium');
+  const [celebrationMode, setCelebrationModeState] = useState<CelebrationEffectMode>(() => getCelebrationMode());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [toasts, setToasts] = useState<InGameToast[]>([]);
+
+  const handleSetCelebrationMode = (mode: CelebrationEffectMode) => {
+    setCelebrationModeState(mode);
+    setCelebrationMode(mode);
+    showToast(
+      mode === 'off'
+        ? 'Celebration effects turned off (Clean HUD)'
+        : mode === 'subtle'
+        ? 'Celebrations set to Subtle Sparkles (Minimalist)'
+        : 'Celebrations set to Festive',
+      'info'
+    );
+  };
 
   const [customization, setCustomization] = useState<VehicleCustomization>({
     color: '#f26522',
@@ -104,7 +120,7 @@ export default function App() {
 
   const [vehicleState, setVehicleState] = useState<VehicleState>({
     x: 0,
-    z: 15,
+    z: 75,
     speed: 0,
     rotation: 0,
     steering: 0,
@@ -118,7 +134,7 @@ export default function App() {
 
   const [avatarState, setAvatarState] = useState<AvatarState>({
     x: 2,
-    z: 18,
+    z: 78,
     rotation: 0,
     speed: 0,
     isWalking: false,
@@ -169,7 +185,7 @@ export default function App() {
     setVehicleState((prev) => ({
       ...prev,
       x: 0,
-      z: 15,
+      z: 75,
       speed: 0,
       rotation: 0,
       steering: 0,
@@ -180,11 +196,11 @@ export default function App() {
     setAvatarState((prev) => ({
       ...prev,
       x: 2,
-      z: 18,
+      z: 78,
       speed: 0,
       rotation: 0,
     }));
-    showToast('Vehicle position reset to Ibom Plaza roundabout!', 'info');
+    showToast('Vehicle position reset to Aka Road boulevard approaching Ibom Plaza!', 'info');
   };
 
   const handleMissionComplete = (missionId: string) => {
@@ -574,7 +590,9 @@ export default function App() {
       <GameSettingsModal
         isOpen={isSettingsOpen}
         graphicsQuality={graphicsQuality}
+        celebrationMode={celebrationMode}
         onSetGraphicsQuality={setGraphicsQuality}
+        onSetCelebrationMode={handleSetCelebrationMode}
         onResetVehicle={handleResetVehicle}
         onClose={() => setIsSettingsOpen(false)}
       />
