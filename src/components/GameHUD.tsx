@@ -33,6 +33,7 @@ import {
   Utensils,
   Landmark as LandmarkIcon,
   Shield,
+  Gift,
 } from 'lucide-react';
 
 interface GameHUDProps {
@@ -48,6 +49,9 @@ interface GameHUDProps {
   onCameraChange: (c: CameraMode) => void;
   onPlayerModeChange: (m: PlayerMode) => void;
   onOpenGarage: () => void;
+  onOpenDailyRewards?: () => void;
+  hasDailyRewardReady?: boolean;
+  onOpenLeaderboard?: () => void;
   onOpenQuests: () => void;
   onOpenShootout: () => void;
   onOpenObservatory: () => void;
@@ -70,6 +74,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onCameraChange,
   onPlayerModeChange,
   onOpenGarage,
+  onOpenDailyRewards,
+  hasDailyRewardReady = false,
+  onOpenLeaderboard,
   onOpenQuests,
   onOpenShootout,
   onOpenObservatory,
@@ -217,6 +224,35 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <Wrench className="w-3.5 h-3.5 text-[#f26522]" />
             <span className="hidden sm:inline">Garage</span>
           </button>
+
+          {onOpenDailyRewards && (
+            <button
+              onClick={onOpenDailyRewards}
+              className={`relative px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 transition-all ${
+                hasDailyRewardReady
+                  ? 'bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-400 text-amber-300 shadow-xl shadow-amber-500/20 animate-pulse'
+                  : 'bg-[#06140b]/90 text-slate-300 border border-white/20 hover:bg-white/10'
+              }`}
+              title="Daily Uyo Login Rewards"
+            >
+              <Gift className={`w-3.5 h-3.5 ${hasDailyRewardReady ? 'text-amber-400' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline">Daily Bonus</span>
+              {hasDailyRewardReady && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-black" />
+              )}
+            </button>
+          )}
+
+          {onOpenLeaderboard && (
+            <button
+              onClick={onOpenLeaderboard}
+              className="px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-amber-300 border border-amber-400/50 hover:bg-amber-400/20 shadow-xl transition-all cursor-pointer"
+              title="Uyo Legends Global Leaderboard"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Legends</span>
+            </button>
+          )}
 
           {/* Interactive Hotspot Buttons */}
           <button

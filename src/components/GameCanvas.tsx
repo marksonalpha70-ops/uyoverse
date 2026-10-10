@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { triggerCelebration } from '../utils/celebration';
+import { getDecalById } from '../utils/dailyReward';
 import {
   CameraMode,
   Landmark,
@@ -744,6 +745,109 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         underglow.position.set(0, 0.2, 0);
         vehicleGroup.add(underglow);
         underglowLightRef.current = underglow;
+      }
+
+      // Exclusive Livery / Decals Application
+      if (customization.decal && customization.decal !== 'none') {
+        const decalData = getDecalById(customization.decal);
+        if (decalData) {
+          const primColor = new THREE.Color(decalData.primaryColor);
+          const accColor = new THREE.Color(decalData.accentColor);
+          const primaryLiveryMat = new THREE.MeshStandardMaterial({
+            color: primColor,
+            roughness: 0.3,
+            metalness: 0.7,
+            emissive: primColor,
+            emissiveIntensity: 0.2,
+          });
+          const accentLiveryMat = new THREE.MeshStandardMaterial({
+            color: accColor,
+            roughness: 0.2,
+            metalness: 0.8,
+            emissive: accColor,
+            emissiveIntensity: 0.25,
+          });
+
+          const isCoupe = model === 'coupe';
+          const isKeke = model === 'keke';
+          const isBus = model === 'bus';
+
+          const roofY = isCoupe ? 1.58 : isBus ? 2.65 : isKeke ? 1.85 : 1.86;
+          const hoodY = isCoupe ? 0.98 : isBus ? 1.65 : isKeke ? 1.15 : 1.2;
+          const hoodZ = isCoupe ? 1.6 : isBus ? 3.2 : isKeke ? 0.9 : 1.6;
+
+          // Dual Racing Stripes (Center Hood & Roof)
+          const centerStripe = new THREE.Mesh(
+            new THREE.BoxGeometry(0.32, 0.04, isBus ? 7.2 : 4.4),
+            primaryLiveryMat
+          );
+          centerStripe.position.set(0, hoodY, 0);
+          vehicleGroup.add(centerStripe);
+
+          const flankStripeLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.04, isBus ? 7.2 : 4.4),
+            accentLiveryMat
+          );
+          flankStripeLeft.position.set(-0.26, hoodY, 0);
+          vehicleGroup.add(flankStripeLeft);
+
+          const flankStripeRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.04, isBus ? 7.2 : 4.4),
+            accentLiveryMat
+          );
+          flankStripeRight.position.set(0.26, hoodY, 0);
+          vehicleGroup.add(flankStripeRight);
+
+          // Pattern-Specific Details
+          if (decalData.pattern === 'star' || decalData.pattern === 'crest' || decalData.pattern === 'monarch') {
+            const emblemGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.04, 8);
+            emblemGeo.rotateX(Math.PI / 2);
+            const emblemMesh = new THREE.Mesh(emblemGeo, accentLiveryMat);
+            emblemMesh.position.set(0, hoodY + 0.03, hoodZ);
+            vehicleGroup.add(emblemMesh);
+
+            if (decalData.pattern === 'monarch') {
+              const crownRing = new THREE.Mesh(
+                new THREE.TorusGeometry(0.28, 0.04, 8, 16),
+                primaryLiveryMat
+              );
+              crownRing.rotation.x = Math.PI / 2;
+              crownRing.position.set(0, roofY + 0.04, -0.2);
+              vehicleGroup.add(crownRing);
+            }
+          } else if (decalData.pattern === 'wings') {
+            const wingGeo = new THREE.BoxGeometry(0.06, 0.16, 1.8);
+            const leftWing = new THREE.Mesh(wingGeo, primaryLiveryMat);
+            leftWing.position.set(-1.22, hoodY, 0.2);
+            leftWing.rotation.y = 0.15;
+            vehicleGroup.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeo, primaryLiveryMat);
+            rightWing.position.set(1.22, hoodY, 0.2);
+            rightWing.rotation.y = -0.15;
+            vehicleGroup.add(rightWing);
+          } else if (decalData.pattern === 'lightning') {
+            const boltGeo = new THREE.BoxGeometry(0.08, 0.1, 1.4);
+            const boltLeft = new THREE.Mesh(boltGeo, accentLiveryMat);
+            boltLeft.position.set(-1.2, hoodY, 0);
+            boltLeft.rotation.z = 0.25;
+            vehicleGroup.add(boltLeft);
+
+            const boltRight = new THREE.Mesh(boltGeo, accentLiveryMat);
+            boltRight.position.set(1.2, hoodY, 0);
+            boltRight.rotation.z = -0.25;
+            vehicleGroup.add(boltRight);
+          } else if (decalData.pattern === 'matrix') {
+            const gridGeo = new THREE.BoxGeometry(0.05, 0.05, 2.6);
+            const gridStripeL = new THREE.Mesh(gridGeo, accentLiveryMat);
+            gridStripeL.position.set(-1.18, hoodY - 0.1, 0);
+            vehicleGroup.add(gridStripeL);
+
+            const gridStripeR = new THREE.Mesh(gridGeo, accentLiveryMat);
+            gridStripeR.position.set(1.18, hoodY - 0.1, 0);
+            vehicleGroup.add(gridStripeR);
+          }
+        }
       }
     };
 

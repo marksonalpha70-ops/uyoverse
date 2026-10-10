@@ -18,6 +18,8 @@ import { DakkadaObservatoryModal } from './components/DakkadaObservatoryModal';
 import { FoodKioskModal } from './components/FoodKioskModal';
 import { RealEstateModal } from './components/RealEstateModal';
 import { PhotoModeModal } from './components/PhotoModeModal';
+import { DailyRewardModal } from './components/DailyRewardModal';
+import { LeaderboardModal } from './components/LeaderboardModal';
 import { UyoverseLogo } from './components/UyoverseLogo';
 import {
   CameraMode,
@@ -36,6 +38,7 @@ import {
   CelebrationEffectMode,
 } from './types/game';
 import { getCelebrationMode, setCelebrationMode } from './utils/celebration';
+import { getDailyRewardStatus, getUnlockedDecalIds, getDecalById } from './utils/dailyReward';
 import {
   GAME_MISSIONS,
   UYO_LANDMARKS,
@@ -55,6 +58,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  Gift,
 } from 'lucide-react';
 
 type NavTab = 'gameplay' | 'community' | 'guide';
@@ -95,6 +99,7 @@ export default function App() {
     neonUnderglow: 'none',
     engineStage: 1,
     roofLight: true,
+    decal: 'none',
   });
 
   const [missions, setMissions] = useState<Mission[]>(GAME_MISSIONS);
@@ -112,6 +117,12 @@ export default function App() {
   const [isFoodKioskOpen, setIsFoodKioskOpen] = useState(false);
   const [isRealEstateOpen, setIsRealEstateOpen] = useState(false);
   const [isPhotoModeOpen, setIsPhotoModeOpen] = useState(false);
+  const [isDailyRewardOpen, setIsDailyRewardOpen] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+
+  // Daily login reward system & unlocked decals
+  const [dailyRewardStatus, setDailyRewardStatus] = useState(() => getDailyRewardStatus());
+  const [unlockedDecals, setUnlockedDecals] = useState<string[]>(() => getUnlockedDecalIds());
 
   // Economy & progression
   const [playerXP, setPlayerXP] = useState(450);
@@ -201,6 +212,34 @@ export default function App() {
       rotation: 0,
     }));
     showToast('Vehicle position reset to Aka Road boulevard approaching Ibom Plaza!', 'info');
+  };
+
+  // Check for daily login reward on first launch each day
+  useEffect(() => {
+    const status = getDailyRewardStatus();
+    setDailyRewardStatus(status);
+    if (status.canClaim) {
+      // Auto-open daily reward modal on first launch of the game each day
+      setIsDailyRewardOpen(true);
+      showToast(
+        `🎁 Daily Check-in: Day ${status.currentStreakDay} reward ready! Extra Ibom Coins & exclusive decals available.`,
+        'info'
+      );
+    }
+  }, []);
+
+  const handleClaimDailyReward = (rewardCoins: number, rewardXP: number, decalId: string) => {
+    setPlayerCoins((c) => c + rewardCoins);
+    setPlayerXP((xp) => xp + rewardXP);
+    const updatedDecals = getUnlockedDecalIds();
+    setUnlockedDecals(updatedDecals);
+    const newStatus = getDailyRewardStatus();
+    setDailyRewardStatus(newStatus);
+    const decal = getDecalById(decalId);
+    showToast(
+      `🎉 Daily Reward Claimed! +₦${rewardCoins.toLocaleString()} Ibom Coins & Unlocked "${decal ? decal.name : 'Exclusive'}" Decal!`,
+      'success'
+    );
   };
 
   const handleMissionComplete = (missionId: string) => {
@@ -384,6 +423,24 @@ export default function App() {
 
         {/* Right Action Controls: Economy, XP, Settings, Fullscreen, PWA */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Daily Reward Bonus Button */}
+          <button
+            onClick={() => setIsDailyRewardOpen(true)}
+            className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-orbitron font-bold transition-all cursor-pointer ${
+              dailyRewardStatus.canClaim
+                ? 'bg-gradient-to-r from-amber-500/25 to-emerald-500/25 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/20 animate-pulse'
+                : 'bg-black/40 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+            }`}
+            title="Daily Uyo Login Bonus"
+            aria-label="Open Daily Login Rewards"
+          >
+            <Gift className={`w-3.5 h-3.5 ${dailyRewardStatus.canClaim ? 'text-amber-400' : 'text-[#1fc16b]'}`} />
+            <span className="hidden md:inline">Daily Bonus</span>
+            {dailyRewardStatus.canClaim && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-black" />
+            )}
+          </button>
+
           {/* PWA In-App Install Button */}
           <PWAInstallButton />
 
@@ -393,11 +450,19 @@ export default function App() {
             <span>₦{playerCoins.toLocaleString()}</span>
           </div>
 
-          {/* Driver XP & Rank */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0e301d] border border-[#1fc16b]/30 text-xs">
-            <Trophy className="w-3.5 h-3.5 text-[#1fc16b]" />
+          {/* Driver XP & Global Rank Button */}
+          <button
+            onClick={() => setIsLeaderboardOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0e301d] hover:bg-[#144428] border border-[#1fc16b]/40 hover:border-[#1fc16b] text-xs transition-all cursor-pointer group shadow-sm"
+            title="View Global Uyo Legends Leaderboard & Your Rank"
+            aria-label="Open Uyo Legends Leaderboard"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
             <span className="font-orbitron font-bold text-white">{playerXP} XP</span>
-          </div>
+            <span className="text-[10px] text-amber-300 font-mono font-bold px-1 py-0.2 rounded bg-black/40 border border-amber-400/30">
+              Rank
+            </span>
+          </button>
 
           {/* Fullscreen Toggle */}
           <button
@@ -512,6 +577,9 @@ export default function App() {
                 onCameraChange={setCameraMode}
                 onPlayerModeChange={setPlayerMode}
                 onOpenGarage={() => setIsGarageOpen(true)}
+                onOpenDailyRewards={() => setIsDailyRewardOpen(true)}
+                hasDailyRewardReady={dailyRewardStatus.canClaim}
+                onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
                 onOpenQuests={() => setIsQuestsOpen(true)}
                 onOpenShootout={() => setIsShootoutOpen(true)}
                 onOpenObservatory={() => setIsObservatoryOpen(true)}
@@ -569,6 +637,7 @@ export default function App() {
               playerXP={playerXP}
               playerCoins={playerCoins}
               onJumpToDriver={handleJumpToDriver}
+              onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
             />
           </div>
         )}
@@ -604,11 +673,28 @@ export default function App() {
         customization={customization}
         playerCoins={playerCoins}
         unlockedModels={unlockedModels}
+        unlockedDecals={unlockedDecals}
         onSelectModel={setVehicleModel}
         onUpdateCustomization={setCustomization}
         onUnlockVehicle={handleUnlockVehicle}
         onUpgradeEngine={handleUpgradeEngine}
+        onOpenDailyRewards={() => {
+          setIsGarageOpen(false);
+          setIsDailyRewardOpen(true);
+        }}
         onClose={() => setIsGarageOpen(false)}
+      />
+
+      <DailyRewardModal
+        isOpen={isDailyRewardOpen}
+        status={dailyRewardStatus}
+        playerCoins={playerCoins}
+        onClaimSuccess={handleClaimDailyReward}
+        onOpenGarage={() => {
+          setIsDailyRewardOpen(false);
+          setIsGarageOpen(true);
+        }}
+        onClose={() => setIsDailyRewardOpen(false)}
       />
 
       <QuestsModal
@@ -650,6 +736,12 @@ export default function App() {
         isOpen={isPhotoModeOpen}
         vehicleState={vehicleState}
         onClose={() => setIsPhotoModeOpen(false)}
+      />
+
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        playerXP={playerXP}
+        onClose={() => setIsLeaderboardOpen(false)}
       />
     </div>
   );

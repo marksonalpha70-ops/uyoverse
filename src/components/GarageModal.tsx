@@ -1,7 +1,8 @@
 import React from 'react';
 import { VehicleModel, VehicleCustomization } from '../types/game';
 import { VEHICLE_CATALOG } from '../data/gameData';
-import { Wrench, Check, Lock, Coins, Sparkles, X, ShieldAlert } from 'lucide-react';
+import { Wrench, Check, Lock, Coins, Sparkles, X, Palette, Gift } from 'lucide-react';
+import { EXCLUSIVE_DECALS } from '../utils/dailyReward';
 
 interface GarageModalProps {
   isOpen: boolean;
@@ -9,10 +10,12 @@ interface GarageModalProps {
   customization: VehicleCustomization;
   playerCoins: number;
   unlockedModels: string[];
+  unlockedDecals?: string[];
   onSelectModel: (model: VehicleModel) => void;
   onUpdateCustomization: (c: VehicleCustomization) => void;
   onUnlockVehicle: (model: VehicleModel, cost: number) => void;
   onUpgradeEngine: (stage: number, cost: number) => void;
+  onOpenDailyRewards?: () => void;
   onClose: () => void;
 }
 
@@ -22,10 +25,12 @@ export const GarageModal: React.FC<GarageModalProps> = ({
   customization,
   playerCoins,
   unlockedModels,
+  unlockedDecals = ['none'],
   onSelectModel,
   onUpdateCustomization,
   onUnlockVehicle,
   onUpgradeEngine,
+  onOpenDailyRewards,
   onClose,
 }) => {
   if (!isOpen) return null;
@@ -250,6 +255,147 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                         >
                           Upgrade (₦{s.cost.toLocaleString()})
                         </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 4. Exclusive Daily Login Decals & Livery */}
+          <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h4 className="font-orbitron font-bold text-sm text-white flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#1fc16b]" />
+                  Exclusive Daily Login Decals & Liveries
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Earned via daily check-in milestones. Apply custom aerodynamic stripes and Akwa Ibom cultural emblems.
+                </p>
+              </div>
+              {onOpenDailyRewards && (
+                <button
+                  onClick={onOpenDailyRewards}
+                  className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 font-orbitron font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Gift className="w-3.5 h-3.5 text-amber-400" />
+                  View Daily Rewards
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Default No Decal Option */}
+              <div
+                className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
+                  !customization.decal || customization.decal === 'none'
+                    ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-1 ring-[#1fc16b]'
+                    : 'bg-black/30 border-white/10 hover:border-white/20'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono text-slate-400">FACTORY FINISH</span>
+                    {(!customization.decal || customization.decal === 'none') && (
+                      <span className="text-[10px] font-orbitron font-bold text-[#1fc16b] flex items-center gap-1">
+                        <Check className="w-3 h-3" /> EQUIPPED
+                      </span>
+                    )}
+                  </div>
+                  <h5 className="font-orbitron font-bold text-white text-xs">Standard Clean Livery</h5>
+                  <p className="text-[11px] text-slate-400 mt-1">Clean uniform exterior without additional livery stripes.</p>
+                </div>
+                <button
+                  onClick={() => onUpdateCustomization({ ...customization, decal: 'none' })}
+                  disabled={!customization.decal || customization.decal === 'none'}
+                  className={`mt-3 w-full py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
+                    !customization.decal || customization.decal === 'none'
+                      ? 'bg-[#1fc16b] text-black cursor-default'
+                      : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer'
+                  }`}
+                >
+                  {!customization.decal || customization.decal === 'none' ? 'Active' : 'Equip Clean'}
+                </button>
+              </div>
+
+              {/* Exclusive Daily Decals */}
+              {EXCLUSIVE_DECALS.map((d) => {
+                const isUnlocked = unlockedDecals.includes(d.id);
+                const isEquipped = customization.decal === d.id;
+
+                return (
+                  <div
+                    key={d.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden ${
+                      isEquipped
+                        ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-1 ring-[#1fc16b] shadow-lg shadow-[#1fc16b]/10'
+                        : isUnlocked
+                        ? 'bg-black/30 border-white/10 hover:border-white/20'
+                        : 'bg-black/40 border-white/5 opacity-70'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className="text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase"
+                          style={{
+                            backgroundColor: `${d.primaryColor}25`,
+                            color: d.primaryColor,
+                          }}
+                        >
+                          Day {d.day} Login
+                        </span>
+                        {isEquipped && (
+                          <span className="text-[10px] font-orbitron font-bold text-[#1fc16b] flex items-center gap-1">
+                            <Check className="w-3 h-3" /> ACTIVE
+                          </span>
+                        )}
+                        {!isUnlocked && (
+                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> Locked
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 my-2">
+                        <div
+                          className="w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 relative overflow-hidden"
+                          style={{
+                            borderColor: d.primaryColor,
+                            background: `linear-gradient(135deg, ${d.primaryColor}30, ${d.accentColor}30)`,
+                          }}
+                        >
+                          <div className="w-full h-1 absolute top-1" style={{ backgroundColor: d.primaryColor }} />
+                          <div className="w-full h-0.5 absolute bottom-1" style={{ backgroundColor: d.accentColor }} />
+                          <Sparkles className="w-3.5 h-3.5" style={{ color: d.primaryColor }} />
+                        </div>
+                        <div>
+                          <h5 className="font-orbitron font-bold text-white text-xs">{d.name}</h5>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{d.description}</p>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-white/5">
+                      {isUnlocked ? (
+                        <button
+                          onClick={() => onUpdateCustomization({ ...customization, decal: d.id })}
+                          disabled={isEquipped}
+                          className={`w-full py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
+                            isEquipped
+                              ? 'bg-[#1fc16b] text-black cursor-default'
+                              : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer'
+                          }`}
+                        >
+                          {isEquipped ? 'Equipped' : 'Equip Decal'}
+                        </button>
+                      ) : (
+                        <div className="w-full py-1.5 rounded-xl bg-black/50 border border-white/10 text-center text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
+                          <Lock className="w-3 h-3 text-amber-400" /> Unlock on Day {d.day}
+                        </div>
                       )}
                     </div>
                   </div>

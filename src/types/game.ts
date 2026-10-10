@@ -25,11 +25,30 @@ export type CelebrationEffectMode = 'subtle' | 'off' | 'full';
 
 export type PhotoFilter = 'none' | 'golden' | 'neon' | 'vintage' | 'harmattan';
 
+export interface ExclusiveDecal {
+  id: string;
+  name: string;
+  day: number;
+  description: string;
+  primaryColor: string;
+  accentColor: string;
+  pattern: 'stripes' | 'wings' | 'crest' | 'lightning' | 'star' | 'matrix' | 'monarch';
+}
+
+export interface DailyRewardTier {
+  day: number;
+  coins: number;
+  xp: number;
+  decal: ExclusiveDecal;
+  title: string;
+}
+
 export interface VehicleCustomization {
   color: string;
   neonUnderglow: string; // 'none' | '#1fc16b' | '#f26522' | '#38bdf8'
   engineStage: number; // 1, 2, 3
   roofLight: boolean;
+  decal?: string; // 'none' | decal.id
 }
 
 export interface Mission {
@@ -123,4 +142,22 @@ export interface RoadmapPhase {
     deliverables: string[];
     technicalStack: string[];
   }[];
+}
+
+export type LeaderboardTier = 'legend' | 'diamond' | 'platinum' | 'gold' | 'silver' | 'bronze';
+
+export interface LeaderboardPlayer {
+  id: string;
+  rank: number;
+  name: string;
+  tag: string;
+  xp: number;
+  tier: LeaderboardTier;
+  favoriteVehicle: string;
+  district: string;
+  title: string;
+  isUser?: boolean;
+  avatarColor: string;
+  missionsCompleted: number;
+  badge?: string;
 }
