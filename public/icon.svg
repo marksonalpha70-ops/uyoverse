@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="uyoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#ff7a18" />
+      <stop offset="50%" stopColor="#f26522" />
+      <stop offset="100%" stopColor="#d94b08" />
+    </linearGradient>
+  </defs>
+  <!-- Orange Squircle Base -->
+  <rect x="12" y="12" width="488" height="488" rx="140" ry="140" fill="url(#uyoGrad)" />
+  <!-- Outer Circular Ring -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ffffff" stroke-width="8" />
+  <!-- Tilted Orbital Ellipse -->
+  <ellipse cx="256" cy="256" rx="165" ry="60" fill="none" stroke="#ffffff" stroke-width="6" transform="rotate(-15, 256, 256)" opacity="0.9" />
+  <!-- Orbiting Satellite Sphere -->
+  <circle cx="410" cy="235" r="11" fill="#ffffff" />
+  <!-- Stylized White 'U' -->
+  <path d="M 195 190 L 195 280 C 195 325 220 350 256 350 C 292 350 317 325 317 280 L 317 190" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" />
+  <!-- Center Dark Green Core (Ibom Plaza Hub) -->
+  <circle cx="256" cy="275" r="32" fill="#0d522c" />
+</svg>

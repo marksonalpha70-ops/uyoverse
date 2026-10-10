@@ -1,0 +1,6 @@
+{
+  "name": "Uyoverse 3D - Game Dev Blueprint & Playable Engine",
+  "description": "Comprehensive analysis of Uyoverse digital twin and engineering roadmap to a premium 3D open-world game, featuring a live playable 3D prototype with Akwa Ibom landmarks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
