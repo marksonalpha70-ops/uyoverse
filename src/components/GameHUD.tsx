@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CameraMode,
   Landmark,
@@ -34,6 +34,11 @@ import {
   Landmark as LandmarkIcon,
   Shield,
   Gift,
+  Music2,
+  Disc3,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface GameHUDProps {
@@ -89,6 +94,32 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const [isRadioOn, setIsRadioOn] = useState(soundEngine.isRadioOn());
   const [currentStation, setCurrentStation] = useState<RadioStation>('uyo_fm');
   const [stationInfo, setStationInfo] = useState(soundEngine.getStationInfo());
+  const [isRadioDrawerOpen, setIsRadioDrawerOpen] = useState(false);
+  const [radioVolume, setRadioVolume] = useState(soundEngine.getRadioVolume());
+  const [visualizerBars, setVisualizerBars] = useState<number[]>([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+  const [djAnnouncement, setDjAnnouncement] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = soundEngine.registerDJListener((msg) => {
+      setDjAnnouncement(msg);
+      const timer = setTimeout(() => {
+        setDjAnnouncement((prev) => (prev === msg ? null : prev));
+      }, 6500);
+      return () => clearTimeout(timer);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!isRadioOn || isMuted) {
+      setVisualizerBars([0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]);
+      return;
+    }
+    const interval = setInterval(() => {
+      setVisualizerBars([...soundEngine.getVisualizerData()]);
+    }, 90);
+    return () => clearInterval(interval);
+  }, [isRadioOn, isMuted]);
 
   const handleToggleMute = () => {
     const muted = soundEngine.toggleMute();
@@ -101,13 +132,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     setStationInfo(soundEngine.getStationInfo());
   };
 
-  const handleStationCycle = () => {
-    const stations: RadioStation[] = ['uyo_fm', 'dakkada_pulse', 'heritage_fm'];
-    const nextIdx = (stations.indexOf(currentStation) + 1) % stations.length;
-    const nextStation = stations[nextIdx];
-    setCurrentStation(nextStation);
-    soundEngine.setStation(nextStation);
+  const handleSelectStation = (station: RadioStation) => {
+    setCurrentStation(station);
+    soundEngine.setStation(station);
     setStationInfo(soundEngine.getStationInfo());
+  };
+
+  const handleStationCycle = () => {
+    const stations: RadioStation[] = ['uyo_fm', 'dakkada_pulse', 'heritage_fm', 'atlantic_wave'];
+    const nextIdx = (stations.indexOf(currentStation) + 1) % stations.length;
+    handleSelectStation(stations[nextIdx]);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = parseFloat(e.target.value);
+    setRadioVolume(vol);
+    soundEngine.setRadioVolume(vol);
   };
 
   const radarScale = 0.35;
@@ -316,7 +356,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             onClick={handleToggleRadio}
             className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
               isRadioOn
-                ? 'bg-gradient-to-r from-[#f26522] to-[#1fc16b] text-white font-bold animate-pulse'
+                ? 'bg-gradient-to-r from-[#f26522] to-[#1fc16b] text-white font-bold shadow-md shadow-[#1fc16b]/20'
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
             title="Toggle Afrobeats Radio"
@@ -324,15 +364,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <Radio className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{isRadioOn ? 'Radio ON' : 'Radio'}</span>
           </button>
+
           {isRadioOn && (
             <button
-              onClick={handleStationCycle}
-              className="px-2 py-1 rounded-xl text-[10px] font-mono bg-black/60 text-[#1fc16b] hover:bg-white/10"
-              title="Change Station"
+              onClick={() => setIsRadioDrawerOpen(!isRadioDrawerOpen)}
+              className="px-2 py-1 rounded-xl text-[10px] font-mono bg-black/60 text-[#1fc16b] hover:bg-white/10 flex items-center gap-1 transition-all"
+              title="Open Radio Tuner"
             >
-              Tune ⟳
+              <Sliders className="w-3 h-3" />
+              <span className="hidden md:inline">Tuner</span>
+              {isRadioDrawerOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
           )}
+
           <button
             onClick={handleToggleMute}
             className="p-1 sm:p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
@@ -343,12 +387,123 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       </div>
 
-      {/* Radio Station Now Playing Bar */}
+      {/* On-Air DJ Announcement Broadcast Banner */}
+      {djAnnouncement && (
+        <div className="pointer-events-auto self-center bg-gradient-to-r from-[#0d2a17] via-[#09351d] to-[#0d2a17] border border-[#1fc16b] rounded-2xl px-4 py-2 text-xs text-white shadow-2xl flex items-center gap-2.5 max-w-lg w-full animate-in fade-in slide-in-from-top-3 mt-1.5 z-20">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#f26522] animate-ping shrink-0" />
+          <span className="font-orbitron font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1fc16b]/20 text-[#1fc16b] border border-[#1fc16b]/40 shrink-0">
+            ON AIR
+          </span>
+          <p className="text-slate-100 font-medium text-[11px] leading-tight line-clamp-2">
+            {djAnnouncement}
+          </p>
+        </div>
+      )}
+
+      {/* Radio Station Now Playing Bar & Real-Time Equalizer */}
       {isRadioOn && (
-        <div className="pointer-events-auto self-center bg-black/75 backdrop-blur-md border border-[#1fc16b]/40 rounded-xl px-3 py-1 text-[11px] flex items-center gap-2 shadow-lg mt-1">
-          <span className="w-2 h-2 rounded-full bg-[#1fc16b] animate-ping" />
-          <span className="font-orbitron font-bold text-white">{stationInfo.name}:</span>
-          <span className="text-[#f26522] truncate max-w-xs">{stationInfo.currentTrack}</span>
+        <div className="pointer-events-auto self-center bg-black/85 backdrop-blur-md border border-[#1fc16b]/50 rounded-2xl px-4 py-2 text-[11px] flex flex-wrap items-center justify-between gap-3 shadow-2xl mt-1.5 max-w-xl w-full">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="px-2 py-0.5 rounded-lg text-[10px] font-orbitron font-black text-black shrink-0 shadow-sm"
+              style={{ backgroundColor: stationInfo.accentColor }}
+            >
+              {stationInfo.frequency}
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-orbitron font-bold text-white text-xs">{stationInfo.name}</span>
+                <span className="text-[10px] text-slate-400 font-sans">• {stationInfo.genre}</span>
+              </div>
+              <p className="text-[#f26522] font-medium text-[11px] truncate">
+                {stationInfo.currentTrack} <span className="text-slate-400 text-[10px]">({stationInfo.artist})</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 ml-auto">
+            {/* Animated 8-Band Equalizer Spectrum */}
+            <div className="flex items-end gap-[3px] h-5 px-2 py-0.5 bg-black/60 rounded-lg border border-white/10 shrink-0">
+              {visualizerBars.map((val, i) => (
+                <div
+                  key={i}
+                  className="w-1 rounded-sm transition-all duration-75"
+                  style={{
+                    height: `${Math.max(15, Math.min(100, val * 100))}%`,
+                    backgroundColor: stationInfo.accentColor,
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={handleStationCycle}
+              className="px-2 py-1 rounded-xl text-[10px] font-orbitron font-bold bg-[#1fc16b]/15 text-[#1fc16b] hover:bg-[#1fc16b]/30 border border-[#1fc16b]/40 cursor-pointer shrink-0 transition-all"
+              title="Next Station"
+            >
+              Next ⟳
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Radio Tuner Drawer */}
+      {isRadioOn && isRadioDrawerOpen && (
+        <div className="pointer-events-auto self-center bg-[#07190e]/95 backdrop-blur-xl border border-[#1fc16b] rounded-3xl p-4 shadow-2xl mt-2 max-w-xl w-full animate-in fade-in zoom-in-95 z-30">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+            <div className="flex items-center gap-2">
+              <Disc3 className="w-4 h-4 text-[#1fc16b] animate-spin" />
+              <h4 className="font-orbitron font-bold text-xs text-white uppercase tracking-wider">
+                Uyo FM Radio Tuner
+              </h4>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400 font-mono">VOL</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={radioVolume}
+                onChange={handleVolumeChange}
+                className="w-20 accent-[#1fc16b] cursor-pointer"
+              />
+              <button
+                onClick={() => setIsRadioDrawerOpen(false)}
+                className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {soundEngine.getAllStations().map(({ id, meta }) => {
+              const isSelected = currentStation === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleSelectStation(id)}
+                  className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#1fc16b]/20 border-[#1fc16b] text-white shadow-lg shadow-[#1fc16b]/10 ring-1 ring-[#1fc16b]'
+                      : 'bg-black/40 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-orbitron font-bold text-xs text-white">{meta.name}</span>
+                    <span
+                      className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono text-black"
+                      style={{ backgroundColor: meta.accentColor }}
+                    >
+                      {meta.frequency}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans truncate">{meta.genre}</p>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

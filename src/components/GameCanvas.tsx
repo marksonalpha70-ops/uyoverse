@@ -1184,6 +1184,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
         v.steering += (v.targetSteering - v.steering) * delta * 8;
 
+        if (Math.abs(v.steering) > 0.32 && Math.abs(v.speed) > 14) {
+          soundEngine.playTireSqueal(Math.abs(v.steering));
+        }
+        if (v.isBraking && Math.abs(v.speed) > 10) {
+          soundEngine.playBrakeScreech();
+        }
+
         if (Math.abs(v.speed) > 0.1) {
           const turnDirection = v.speed > 0 ? 1 : -1;
           v.rotY += v.steering * turnDirection * (Math.abs(v.speed) / topLimit + 0.3) * delta * 2.2;
@@ -1194,8 +1201,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         v.pos.x += forwardX * v.speed * delta;
         v.pos.z += forwardZ * v.speed * delta;
 
+        const prevX = v.pos.x;
+        const prevZ = v.pos.z;
         v.pos.x = THREE.MathUtils.clamp(v.pos.x, -700, 700);
         v.pos.z = THREE.MathUtils.clamp(v.pos.z, -700, 700);
+
+        if ((v.pos.x !== prevX || v.pos.z !== prevZ) && Math.abs(v.speed) > 14) {
+          soundEngine.playCollisionSound(Math.abs(v.speed) / topLimit);
+        }
 
         soundEngine.updateEnginePitch(v.speed / topLimit, isUp, isBoosting);
       } else {
@@ -1277,6 +1290,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
         a.isWalking = moving && !isShift;
         a.isRunning = moving && isShift;
+
+        if (moving && !a.isJumping) {
+          soundEngine.playFootstep(isShift);
+        }
 
         // Limb swinging animation
         if (avatarLimbsRef.current) {
@@ -1413,6 +1430,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   // Weather atmosphere
   useEffect(() => {
+    soundEngine.setWeatherAtmosphere(weather);
     if (!sceneRef.current) return;
     const scene = sceneRef.current;
 

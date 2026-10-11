@@ -17,7 +17,7 @@ export type VehicleModel = 'taxi' | 'keke' | 'coupe' | 'bus';
 
 export type PlayerMode = 'driving' | 'walking';
 
-export type RadioStation = 'uyo_fm' | 'dakkada_pulse' | 'heritage_fm';
+export type RadioStation = 'uyo_fm' | 'dakkada_pulse' | 'heritage_fm' | 'atlantic_wave';
 
 export type GraphicsQuality = 'low' | 'medium' | 'ultra';
 
