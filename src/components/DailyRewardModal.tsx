@@ -1,22 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Gift,
   Coins,
-  Trophy,
   Check,
   Lock,
   Sparkles,
   X,
   Flame,
-  ArrowRight,
   ShieldCheck,
   Palette,
+  Clock,
 } from 'lucide-react';
 import {
   DAILY_REWARD_TIERS,
   DailyRewardStatus,
   claimDailyReward,
-  getDecalById,
 } from '../utils/dailyReward';
 import { soundEngine } from '../utils/AudioSynthesizer';
 import { triggerCelebration } from '../utils/celebration';
@@ -38,6 +36,27 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
   onOpenGarage,
   onClose,
 }) => {
+  const [countdown, setCountdown] = useState('');
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const tomorrow = new Date();
+      tomorrow.setHours(24, 0, 0, 0);
+      const diffMs = tomorrow.getTime() - now.getTime();
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+      setCountdown(
+        `${String(hours).padStart(2, '0')}h : ${String(minutes).padStart(2, '0')}m : ${String(seconds).padStart(2, '0')}s`
+      );
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (!isOpen) return null;
 
   const handleClaim = () => {
@@ -53,33 +72,39 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
   const isClaimable = status.canClaim;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
-      <div className="relative w-full max-w-3xl max-h-[94vh] bg-[#07190e] border border-[#1fc16b]/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-3xl max-h-[94vh] bg-[#0a1a10] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/10 bg-[#092213]">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/10 bg-[#10261a]">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#1fc16b]/20 to-[#f26522]/20 border border-[#1fc16b]/40 text-[#1fc16b] shadow-inner">
+            <div className="p-3 rounded-2xl bg-[#fbbf24]/15 border border-[#fbbf24]/30 text-[#fbbf24]">
               <Gift className="w-6 h-6 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-orbitron font-bold text-lg sm:text-xl text-white">
+                <h3 className="font-display font-bold text-lg sm:text-xl text-white">
                   Daily Uyo City Login Rewards
                 </h3>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold">
-                  <Flame className="w-3 h-3 text-amber-400" />
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-[#fbbf24] font-mono text-xs font-bold">
+                  <Flame className="w-3 h-3 text-[#fbbf24]" />
                   Day {status.currentStreakDay} of 7 Streak
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Launch daily to earn Ibom Coins and unlock exclusive vehicle decals
+              <p className="text-xs text-[#9db8a8] mt-0.5">
+                Check in daily to earn Ibom Coins and unlock exclusive vehicle wraps
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/50 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold">
-              <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-white/10 text-[#fbbf24] font-mono text-xs font-bold tabular-nums">
+              <Coins className="w-3.5 h-3.5 text-[#fbbf24]" />
               <span>₦{playerCoins.toLocaleString()}</span>
             </div>
             <button
@@ -93,30 +118,30 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
-          {/* Streak Status Banner */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0c2a18] via-[#092213] to-[#123821] border border-[#1fc16b]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5">
+          {/* Streak Status Banner & Claim Countdown */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#1fc16b]/15 border border-[#1fc16b]/40 flex items-center justify-center text-[#1fc16b]">
-                <Flame className="w-5 h-5 text-amber-400 fill-amber-400/20" />
+              <div className="w-10 h-10 rounded-xl bg-[#22c55e]/15 border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] shrink-0">
+                <Flame className="w-5 h-5 text-[#fbbf24]" />
               </div>
               <div>
-                <h4 className="text-sm font-orbitron font-bold text-white flex items-center gap-2">
+                <h4 className="text-sm font-display font-bold text-white flex items-center gap-2">
                   <span>Day {status.currentStreakDay} Login Milestone</span>
                   {isClaimable ? (
-                    <span className="px-2 py-0.5 rounded-md bg-[#1fc16b] text-black text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-full bg-[#22c55e] text-black text-[10px] font-black uppercase tracking-wider">
                       Ready to Claim
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-[#9db8a8] text-[10px] font-bold">
                       Claimed Today
                     </span>
                   )}
                 </h4>
-                <p className="text-xs text-slate-300 mt-0.5">
+                <p className="text-xs text-[#9db8a8] mt-0.5">
                   {isClaimable
                     ? 'Claim today’s fare dividend and your limited-edition Akwa Ibom decal.'
-                    : 'You have claimed today’s reward! Check back tomorrow for the next tier.'}
+                    : `Next claim unlocks at midnight in ${countdown}`}
                 </p>
               </div>
             </div>
@@ -124,165 +149,57 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
             {isClaimable ? (
               <button
                 onClick={handleClaim}
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#1fc16b] to-[#179c55] hover:brightness-110 text-black font-orbitron font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#1fc16b]/20 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-display font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#22c55e]/20 transition-all cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
                 Claim Now (+₦{currentTier.coins.toLocaleString()})
               </button>
             ) : (
-              <div className="w-full sm:w-auto flex items-center gap-2 text-xs font-mono text-emerald-400 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Next reward ready tomorrow</span>
+              <div className="w-full sm:w-auto flex items-center gap-2 text-xs font-mono text-[#9db8a8] px-3.5 py-2 rounded-full bg-white/5 border border-white/10 tabular-nums">
+                <Clock className="w-3.5 h-3.5 text-[#fbbf24]" />
+                <span>Next reward in {countdown}</span>
               </div>
             )}
           </div>
 
-          {/* Featured Decal Spotlight */}
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-orbitron font-bold text-slate-300 flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-[#1fc16b]" />
-                {isClaimable ? 'Today’s Exclusive Decal Unlock' : 'Current Active Reward Decal'}
-              </span>
-              <span className="text-[11px] font-mono text-amber-300">
-                Tier {currentTier.day} / 7
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#0a2014] p-4 rounded-xl border border-[#1fc16b]/30">
-              {/* Visual Decal Badge */}
-              <div
-                className="w-20 h-20 rounded-2xl border-2 flex flex-col items-center justify-center relative overflow-hidden shadow-lg shrink-0"
-                style={{
-                  borderColor: currentTier.decal.primaryColor,
-                  background: `linear-gradient(135deg, ${currentTier.decal.primaryColor}22, ${currentTier.decal.accentColor}33)`,
-                }}
-              >
-                {/* Decorative Stripe preview */}
-                <div
-                  className="absolute inset-x-0 h-2 top-3 shadow"
-                  style={{ backgroundColor: currentTier.decal.primaryColor }}
-                />
-                <div
-                  className="absolute inset-x-0 h-1.5 bottom-3 shadow"
-                  style={{ backgroundColor: currentTier.decal.accentColor }}
-                />
-                <Sparkles
-                  className="w-7 h-7 relative z-10"
-                  style={{ color: currentTier.decal.primaryColor }}
-                />
-                <span className="text-[9px] font-mono font-bold mt-1 text-white relative z-10 uppercase">
-                  {currentTier.decal.pattern}
-                </span>
-              </div>
-
-              {/* Decal Info */}
-              <div className="flex-1 text-center sm:text-left">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h4 className="font-orbitron font-bold text-white text-base">
-                    {currentTier.decal.name}
-                  </h4>
-                  <span
-                    className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
-                    style={{
-                      backgroundColor: `${currentTier.decal.primaryColor}30`,
-                      color: currentTier.decal.primaryColor,
-                    }}
-                  >
-                    Day {currentTier.day} Decal
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 mt-1">
-                  {currentTier.decal.description}
-                </p>
-                <div className="flex items-center justify-center sm:justify-start gap-4 mt-2.5 text-xs font-mono">
-                  <span className="text-amber-300 font-bold flex items-center gap-1">
-                    <Coins className="w-3.5 h-3.5" /> +₦{currentTier.coins.toLocaleString()} Ibom Coins
-                  </span>
-                  <span className="text-[#1fc16b] font-bold flex items-center gap-1">
-                    <Trophy className="w-3.5 h-3.5" /> +{currentTier.xp} XP
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 7-Day Road Map Grid */}
-          <div className="space-y-3">
-            <h4 className="font-orbitron font-bold text-xs uppercase tracking-wider text-slate-400">
+          {/* 7-Day Streak Timeline */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-display font-bold uppercase tracking-wider text-[#9db8a8]">
               7-Day Check-in Roadmap
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
               {DAILY_REWARD_TIERS.map((tier) => {
-                const isPast = tier.day < status.currentStreakDay || (!isClaimable && tier.day <= status.currentStreakDay);
+                const isClaimedPast = tier.day < status.currentStreakDay;
                 const isCurrent = tier.day === status.currentStreakDay;
-                const isFuture = tier.day > status.currentStreakDay;
+                const isUpcoming = tier.day > status.currentStreakDay;
 
                 return (
                   <div
                     key={tier.day}
-                    className={`p-3 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden ${
+                    className={`p-3 rounded-2xl border text-center transition-all flex flex-col justify-between ${
                       isCurrent && isClaimable
-                        ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-2 ring-[#1fc16b]/50 shadow-lg shadow-[#1fc16b]/20 scale-102'
-                        : isCurrent && !isClaimable
-                        ? 'bg-[#0e301d] border-[#1fc16b]/50'
-                        : isPast
-                        ? 'bg-black/40 border-white/10 opacity-75'
-                        : 'bg-black/30 border-white/5 opacity-60'
+                        ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-md ring-1 ring-[#22c55e]'
+                        : isClaimedPast || (isCurrent && !isClaimable)
+                        ? 'bg-[#10261a] border-white/10'
+                        : 'bg-black/50 border-white/5 opacity-60'
                     }`}
                   >
-                    {/* Day number badge */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-orbitron font-bold text-slate-300">
-                        DAY {tier.day}
-                      </span>
-                      {isPast ? (
-                        <div className="w-4 h-4 rounded-full bg-[#1fc16b] text-black flex items-center justify-center">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      ) : isCurrent && isClaimable ? (
-                        <span className="w-2 h-2 rounded-full bg-[#1fc16b] animate-ping" />
-                      ) : (
-                        <Lock className="w-3 h-3 text-slate-500" />
-                      )}
-                    </div>
-
-                    {/* Decal Icon & Pattern Preview */}
-                    <div className="my-1.5 flex flex-col items-center">
-                      <div
-                        className="w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm relative overflow-hidden"
-                        style={{
-                          borderColor: tier.decal.primaryColor,
-                          background: `${tier.decal.primaryColor}15`,
-                        }}
-                      >
-                        <div
-                          className="w-full h-1 absolute top-2"
-                          style={{ backgroundColor: tier.decal.primaryColor }}
-                        />
-                        <div
-                          className="w-full h-0.5 absolute bottom-2"
-                          style={{ backgroundColor: tier.decal.accentColor }}
-                        />
-                        <Sparkles
-                          className="w-4 h-4"
-                          style={{ color: tier.decal.primaryColor }}
-                        />
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-mono mb-1">
+                        <span className="text-slate-400">Day {tier.day}</span>
+                        {isClaimedPast || (isCurrent && !isClaimable) ? (
+                          <Check className="w-3 h-3 text-[#22c55e]" />
+                        ) : (
+                          <Lock className="w-3 h-3 text-slate-500" />
+                        )}
                       </div>
-                      <span className="text-[10px] font-space font-semibold text-white mt-1.5 text-center line-clamp-1">
-                        {tier.decal.name.split(' ')[0]}
-                      </span>
-                    </div>
-
-                    {/* Reward details */}
-                    <div className="mt-2 pt-2 border-t border-white/5 text-center">
-                      <div className="text-[11px] font-mono font-bold text-amber-300">
+                      <span className="text-xs font-mono font-bold text-[#fbbf24] block tabular-nums">
                         +₦{tier.coins.toLocaleString()}
-                      </div>
-                      <div className="text-[9px] font-mono text-slate-400">
-                        +{tier.xp} XP
-                      </div>
+                      </span>
                     </div>
+                    <span className="text-[10px] text-slate-300 font-display truncate mt-2 block">
+                      {tier.decal.name}
+                    </span>
                   </div>
                 );
               })}
@@ -290,44 +207,15 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-white/10 bg-[#092213] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-400 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#1fc16b]" />
-            <span>Equip earned decals anytime in the Garage customs shop</span>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {onOpenGarage && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenGarage();
-                }}
-                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-orbitron font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Palette className="w-3.5 h-3.5 text-[#1fc16b]" />
-                Open Garage Decals
-              </button>
-            )}
-
-            {isClaimable ? (
-              <button
-                onClick={handleClaim}
-                className="flex-1 sm:flex-initial px-6 py-2 rounded-xl bg-[#1fc16b] hover:bg-[#19a55a] text-black font-orbitron font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>Claim Reward</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="flex-1 sm:flex-initial px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-orbitron font-bold text-xs transition-all"
-              >
-                Close
-              </button>
-            )}
-          </div>
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-white/10 bg-[#10261a] flex justify-between items-center text-xs text-[#9db8a8]">
+          <span>Rewards reset every 7 consecutive daily check-ins.</span>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-display font-bold text-xs cursor-pointer transition-all"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

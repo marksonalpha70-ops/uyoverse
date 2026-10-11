@@ -1,31 +1,116 @@
 @import "tailwindcss";
 
+:root {
+  --color-base: #050e08;
+  --color-surface: #0a1a10;
+  --color-surface-raised: #10261a;
+  --color-border-hairline: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(34, 197, 94, 0.25);
+  --color-primary-green: #22c55e;
+  --color-objective-orange: #ff6a1a;
+  --color-boost-blue: #38bdf8;
+  --color-reward-gold: #fbbf24;
+  --color-text: #eaf5ee;
+  --color-muted-text: #9db8a8;
+}
+
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-base);
+    color: var(--color-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  button, input, select, textarea {
+    font-family: inherit;
   }
 }
 
+/* Typography Utility Classes */
+.font-display {
+  font-family: 'Chakra Petch', 'Orbitron', 'Inter', sans-serif;
+  letter-spacing: -0.01em;
+}
+
 .font-orbitron {
-  font-family: 'Orbitron', monospace, sans-serif;
+  font-family: 'Chakra Petch', 'Orbitron', sans-serif;
 }
 
-.font-space {
-  font-family: 'Space Grotesk', sans-serif;
+.font-body {
+  font-family: 'Inter', sans-serif;
 }
 
-/* Custom cyber/game scrollbar */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Glassmorphism Surface Classes */
+.glass-surface {
+  background: rgba(10, 26, 16, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-hairline);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.glass-surface-raised {
+  background: rgba(16, 38, 26, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.glass-pill {
+  border-radius: 9999px;
+  border: 1px solid var(--color-border-hairline);
+  background: rgba(10, 26, 16, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 180ms ease-out;
+}
+
+.glass-pill:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.glass-pill:active {
+  transform: scale(0.97);
+}
+
+/* Interactive Focus Rings for Accessibility (Part E) */
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+}
+
+/* Smooth motion & reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom premium scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #060e09;
+  background: #050e08;
 }
 ::-webkit-scrollbar-thumb {
-  background: #153922;
-  border-radius: 4px;
+  background: #10261a;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #1fc16b;
+  background: #22c55e;
 }

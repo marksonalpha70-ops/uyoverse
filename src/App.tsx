@@ -41,6 +41,7 @@ import { getCelebrationMode, setCelebrationMode } from './utils/celebration';
 import { loadGameSave, clearGameSave, computeOfflineRent } from './utils/gameSave';
 import { useGameSave } from './hooks/useGameSave';
 import { getDailyRewardStatus, getUnlockedDecalIds, getDecalById } from './utils/dailyReward';
+import { getTierFromXP, getTierDetails } from './utils/leaderboard';
 import {
   GAME_MISSIONS,
   UYO_LANDMARKS,
@@ -61,6 +62,7 @@ import {
   CheckCircle2,
   Info,
   Gift,
+  Sparkles,
 } from 'lucide-react';
 
 type NavTab = 'gameplay' | 'community' | 'guide';
@@ -71,9 +73,74 @@ interface InGameToast {
   type: 'info' | 'success' | 'warning';
 }
 
+// Custom hook for buttery-smooth number count-up animation on money / XP changes
+function useCountUp(target: number, duration: number = 550) {
+  const [current, setCurrent] = useState(target);
+  const startRef = useRef(target);
+  const startTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    startRef.current = current;
+    startTimeRef.current = null;
+    let animId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const elapsed = timestamp - startTimeRef.current;
+      const progress = Math.min(1, elapsed / duration);
+      // ease-out cubic
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const val = Math.round(startRef.current + (target - startRef.current) * easeProgress);
+      setCurrent(val);
+      if (progress < 1) {
+        animId = requestAnimationFrame(step);
+      }
+    };
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [target, duration]);
+
+  return current;
+}
+
 export default function App() {
   // Persistent save: hydrated once per launch, autosaved via useGameSave below
   const [savedGame] = useState(() => loadGameSave());
+
+  // Loading Screen state (Part D)
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(20);
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
+  const loadingTips = [
+    "Tip: Explore Ibom Plaza to discover rare cultural artifacts.",
+    "Tip: Use the JOB dropdown in your objective card to switch courier routes.",
+    "Tip: Press 'E' to toggle between walking and driving across Uyo.",
+    "Tip: Tune into Radio Uyo 101.1 FM for authentic Afro-Fusion driving grooves.",
+    "Tip: Acquire commercial real estate to collect hourly dividend yields.",
+  ];
+
+  useEffect(() => {
+    const tipInterval = setInterval(() => {
+      setCurrentTipIndex((prev) => (prev + 1) % loadingTips.length);
+    }, 2200);
+
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => setIsLoading(false), 280);
+          return 100;
+        }
+        return prev + 25;
+      });
+    }, 180);
+
+    return () => {
+      clearInterval(tipInterval);
+      clearInterval(progressInterval);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<NavTab>('gameplay');
   const [weather, setWeather] = useState<WeatherType>(savedGame?.weather ?? 'clear');
@@ -104,7 +171,7 @@ export default function App() {
 
   const [customization, setCustomization] = useState<VehicleCustomization>(
     savedGame?.customization ?? {
-      color: '#f26522',
+      color: '#ff6a1a',
       neonUnderglow: 'none',
       engineStage: 1,
       roofLight: true,
@@ -146,6 +213,16 @@ export default function App() {
   const [playerXP, setPlayerXP] = useState(savedGame?.playerXP ?? 450);
   const [playerCoins, setPlayerCoins] = useState(savedGame?.playerCoins ?? 6500);
 
+  // Smooth animated count-up numbers
+  const animatedCoins = useCountUp(playerCoins);
+  const animatedXP = useCountUp(playerXP);
+
+  // Rank name & progress
+  const currentTier = getTierFromXP(playerXP);
+  const tierDetails = getTierDetails(currentTier);
+  const nextTierXP = currentTier === 'bronze' ? 400 : currentTier === 'silver' ? 1000 : currentTier === 'gold' ? 1800 : currentTier === 'platinum' ? 3000 : 5000;
+  const xpProgressPercent = Math.min(100, Math.round((playerXP / nextTierXP) * 100));
+
   // Rental income accrued while the game was closed (capped at 24h), added once at launch
   const [offlineRentEarned] = useState(() => {
     if (!savedGame) return 0;
@@ -181,7 +258,7 @@ export default function App() {
     isJumping: false,
   });
 
-  // Toast notification helper
+  // Toast notification helper with aria-live support
   const showToast = (message: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const newToast: InGameToast = { id: Date.now(), message, type };
     setToasts((prev) => [...prev.slice(-2), newToast]);
@@ -205,30 +282,23 @@ export default function App() {
   // Passive property income accumulator
   useEffect(() => {
     const timer = setInterval(() => {
-      const ownedIncome = properties
-        .filter((p) => p.owned)
-        .reduce((sum, p) => sum + p.hourlyYieldCoins, 0);
-      if (ownedIncome > 0) {
-        setUncollectedRent((r) => r + Math.round(ownedIncome / 120));
+      const activeProperties = properties.filter((p) => p.owned);
+      const totalYield = activeProperties.reduce((sum, p) => sum + p.hourlyYieldCoins, 0);
+      if (totalYield > 0) {
+        const tickIncome = Math.max(1, Math.round(totalYield / 60));
+        setUncollectedRent((r) => r + tickIncome);
       }
-    }, 5000);
+    }, 60000);
     return () => clearInterval(timer);
   }, [properties]);
-
-  // Fullscreen change listener
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
     }
   };
 
@@ -259,15 +329,30 @@ export default function App() {
     showToast('Vehicle position reset to Aka Road boulevard approaching Ibom Plaza!', 'info');
   };
 
-  // Check for daily login reward on first launch each day
+  // Workshop chassis repair
+  const handleRepairVehicle = () => {
+    const repairCost = Math.round((100 - vehicleState.health) * 12);
+    if (repairCost <= 0) {
+      showToast('Chassis is already in factory condition (100%)!', 'info');
+      return;
+    }
+    if (playerCoins >= repairCost) {
+      setPlayerCoins((c) => c - repairCost);
+      setVehicleState((prev) => ({ ...prev, health: 100 }));
+      showToast(`🔧 Chassis fully restored to 100% durability (-₦${repairCost.toLocaleString()})!`, 'success');
+    } else {
+      showToast(`Need ₦${(repairCost - playerCoins).toLocaleString()} more Ibom Coins for workshop repairs!`, 'warning');
+    }
+  };
+
+  // Daily Check-in check on first launch
   useEffect(() => {
     const status = getDailyRewardStatus();
     setDailyRewardStatus(status);
     if (status.canClaim) {
-      // Auto-open daily reward modal on first launch of the game each day
       setIsDailyRewardOpen(true);
       showToast(
-        `🎁 Daily Check-in: Day ${status.currentStreakDay} reward ready! Extra Ibom Coins & exclusive decals available.`,
+        `🎁 Daily Check-in: Day ${status.currentStreakDay} reward ready! Extra Ibom Coins & exclusive wraps available.`,
         'info'
       );
     }
@@ -282,7 +367,7 @@ export default function App() {
     setDailyRewardStatus(newStatus);
     const decal = getDecalById(decalId);
     showToast(
-      `🎉 Daily Reward Claimed! +₦${rewardCoins.toLocaleString()} Ibom Coins & Unlocked "${decal ? decal.name : 'Exclusive'}" Decal!`,
+      `🎉 Daily Reward Claimed! +₦${rewardCoins.toLocaleString()} Ibom Coins & Unlocked "${decal ? decal.name : 'Exclusive'}" Wrap!`,
       'success'
     );
   };
@@ -339,7 +424,7 @@ export default function App() {
       setPlayerXP((xp) => xp + 800);
       showToast(`🏢 Property Acquired: ${prop.name}! Hourly yield added.`, 'success');
     } else {
-      showToast(`Need ₦${(prop.costCoins - playerCoins).toLocaleString()} more Ibom Coins to acquire this title deed!`, 'warning');
+      showToast(`Need ₦${(prop.costCoins - playerCoins).toLocaleString()} more Ibom Coins to acquire title deed!`, 'warning');
     }
   };
 
@@ -368,59 +453,46 @@ export default function App() {
     showToast(`⚽ GOAL! Match won: +₦${rewardCoins.toLocaleString()} and +${rewardXP} XP!`, 'success');
   };
 
-  const handleTeleportToLandmark = (landmark: Landmark) => {
-    setSelectedLandmark(landmark);
-    setActiveTab('gameplay');
+  const handleTeleportToLandmark = (lm: Landmark) => {
     setVehicleState((prev) => ({
       ...prev,
-      x: landmark.position[0],
-      z: landmark.position[2] + 12,
+      x: lm.position[0],
+      z: lm.position[2] + 25,
       speed: 0,
+      rotation: 0,
     }));
     setAvatarState((prev) => ({
       ...prev,
-      x: landmark.position[0] + 2,
-      z: landmark.position[2] + 12,
+      x: lm.position[0] + 2,
+      z: lm.position[2] + 28,
+      speed: 0,
     }));
-
-    if (landmark.id === 'stadium') {
-      setIsShootoutOpen(true);
-    } else if (landmark.id === 'dakkada') {
-      setIsObservatoryOpen(true);
-    } else if (landmark.id === 'plaza') {
-      setIsFoodKioskOpen(true);
-    }
+    setSelectedLandmark(lm);
+    showToast(`📍 Teleported to ${lm.name}!`, 'info');
   };
 
-  const handleTrackArtifact = (artifact: CollectibleArtifact) => {
-    setIsQuestsOpen(false);
-    setActiveTab('gameplay');
+  const handleTrackArtifact = (art: CollectibleArtifact) => {
     setVehicleState((prev) => ({
       ...prev,
-      x: artifact.position[0],
-      z: artifact.position[2] + 12,
+      x: art.position[0] - 8,
+      z: art.position[2] + 8,
       speed: 0,
     }));
-    setAvatarState((prev) => ({
-      ...prev,
-      x: artifact.position[0] + 2,
-      z: artifact.position[2] + 12,
-    }));
-    showToast(`📍 Tracking waypoint set to ${artifact.name}`, 'info');
+    showToast(`🔍 Tracking coordinates for ${art.name}!`, 'info');
   };
 
   const handleJumpToDriver = (x: number, z: number) => {
-    setActiveTab('gameplay');
     setVehicleState((prev) => ({
       ...prev,
-      x,
+      x: x + 8,
       z: z + 8,
       speed: 0,
     }));
+    setActiveTab('gameplay');
     showToast('🚀 Jumped to convoy coordinates!', 'info');
   };
 
-  // Debounced autosave of all durable progression state
+  // Debounced autosave of durable progression state
   useGameSave({
     playerXP,
     playerCoins,
@@ -437,22 +509,53 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-[#040c07] text-white flex flex-col font-sans selection:bg-[#1fc16b] selection:text-black">
-      {/* Top Production Game Bar */}
-      <header className="sticky top-0 z-40 bg-[#06140b]/90 backdrop-blur-md border-b border-[#1fc16b]/30 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-[#050e08] text-[#eaf5ee] flex flex-col font-body selection:bg-[#22c55e] selection:text-black">
+      {/* BRANDED LOADING SCREEN (Part D) */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 bg-[#050e08] flex flex-col items-center justify-center p-6 text-center animate-out fade-out duration-300">
+          <div className="max-w-md w-full space-y-6">
+            <div className="flex justify-center">
+              <UyoverseLogo variant="badge" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-mono text-[#9db8a8]">
+                <span>INITIALIZING ENGINE</span>
+                <span className="text-[#22c55e] font-bold">{loadingProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden p-[1px] border border-white/10">
+                <div
+                  className="h-full bg-gradient-to-r from-[#22c55e] to-[#38bdf8] rounded-full transition-all duration-200"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-[#9db8a8] font-mono italic animate-pulse">
+              {loadingTips[currentTipIndex]}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* COMPACT PRIMARY TOP BAR (Part B item 1) */}
+      <header className="sticky top-0 z-40 bg-[#0a1a10]/90 backdrop-blur-md border-b border-white/10 px-3 sm:px-6 py-2.5 flex items-center justify-between gap-3">
         {/* Brand Logo & Title */}
-        <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => setActiveTab('gameplay')}>
+        <div
+          className="flex items-center gap-2.5 cursor-pointer select-none shrink-0"
+          onClick={() => setActiveTab('gameplay')}
+        >
           <UyoverseLogo variant="badge" />
         </div>
 
-        {/* Center Nav Tabs */}
-        <nav className="hidden md:flex items-center bg-black/50 border border-white/10 rounded-2xl p-1 gap-1">
+        {/* Center Primary Nav Tabs */}
+        <nav className="hidden md:flex items-center rounded-full bg-black/40 border border-white/10 p-1 gap-1">
           <button
             onClick={() => setActiveTab('gameplay')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-display font-bold transition-all cursor-pointer ${
               activeTab === 'gameplay'
-                ? 'bg-[#1fc16b] text-black shadow-lg shadow-[#1fc16b]/20'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'bg-[#22c55e] text-black shadow-md'
+                : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
             }`}
           >
             <Gamepad2 className="w-4 h-4" />
@@ -460,10 +563,10 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('community')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-display font-bold transition-all cursor-pointer ${
               activeTab === 'community'
-                ? 'bg-[#1fc16b] text-black shadow-lg shadow-[#1fc16b]/20'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'bg-[#22c55e] text-black shadow-md'
+                : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -471,10 +574,10 @@ export default function App() {
           </button>
           <button
             onClick={() => setActiveTab('guide')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-display font-bold transition-all cursor-pointer ${
               activeTab === 'guide'
-                ? 'bg-[#1fc16b] text-black shadow-lg shadow-[#1fc16b]/20'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
+                ? 'bg-[#22c55e] text-black shadow-md'
+                : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
             }`}
           >
             <Compass className="w-4 h-4" />
@@ -482,77 +585,67 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Right Action Controls: Economy, XP, Settings, Fullscreen, PWA */}
+        {/* Right Action Controls: Currency, XP/Rank, Quiet PWA, Fullscreen, Settings */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          {/* Daily Reward Bonus Button */}
-          <button
-            onClick={() => setIsDailyRewardOpen(true)}
-            className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-orbitron font-bold transition-all cursor-pointer ${
-              dailyRewardStatus.canClaim
-                ? 'bg-gradient-to-r from-amber-500/25 to-emerald-500/25 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/20 animate-pulse'
-                : 'bg-black/40 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
-            }`}
-            title="Daily Uyo Login Bonus"
-            aria-label="Open Daily Login Rewards"
-          >
-            <Gift className={`w-3.5 h-3.5 ${dailyRewardStatus.canClaim ? 'text-amber-400' : 'text-[#1fc16b]'}`} />
-            <span className="hidden md:inline">Daily Bonus</span>
-            {dailyRewardStatus.canClaim && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-black" />
-            )}
-          </button>
-
-          {/* PWA In-App Install Button */}
-          <PWAInstallButton />
-
-          {/* In-Game Economy Balance */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#092213] border border-amber-500/40 text-amber-300 font-mono text-xs font-bold shadow-sm">
-            <Coins className="w-3.5 h-3.5 text-amber-400" />
-            <span>₦{playerCoins.toLocaleString()}</span>
+          {/* In-Game Economy Balance with Count-Up */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-white/10 text-[#fbbf24] font-mono text-xs font-bold tabular-nums shadow-sm">
+            <Coins className="w-3.5 h-3.5 text-[#fbbf24]" />
+            <span>₦{animatedCoins.toLocaleString()}</span>
           </div>
 
-          {/* Driver XP & Global Rank Button */}
+          {/* Driver XP & Actual Rank Chip (Part B item 7) */}
           <button
             onClick={() => setIsLeaderboardOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#0e301d] hover:bg-[#144428] border border-[#1fc16b]/40 hover:border-[#1fc16b] text-xs transition-all cursor-pointer group shadow-sm"
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 hover:bg-white/5 border border-white/10 text-xs transition-all cursor-pointer group shadow-sm"
             title="View Global Uyo Legends Leaderboard & Your Rank"
             aria-label="Open Uyo Legends Leaderboard"
           >
-            <Trophy className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="font-orbitron font-bold text-white">{playerXP} XP</span>
-            <span className="text-[10px] text-amber-300 font-mono font-bold px-1 py-0.2 rounded bg-black/40 border border-amber-400/30">
-              Rank
+            <Trophy className="w-3.5 h-3.5 text-[#fbbf24]" />
+            <span className="font-display font-bold text-white text-[11px] truncate max-w-[90px]">
+              {tierDetails.label}
             </span>
+            <div className="flex items-center gap-1 font-mono text-[10px] text-[#9db8a8]">
+              <span className="tabular-nums">{animatedXP}</span>
+              <div className="w-8 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#22c55e] rounded-full"
+                  style={{ width: `${xpProgressPercent}%` }}
+                />
+              </div>
+            </div>
           </button>
 
-          {/* Fullscreen Toggle */}
+          {/* Quiet Outlined PWA Install Button (Part B item 1) */}
+          <PWAInstallButton />
+
+          {/* Fullscreen Toggle (44x44 target, tooltip, aria-label) */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-black/40 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors hidden sm:flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-black/40 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors hidden sm:flex items-center justify-center cursor-pointer"
             title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             aria-label="Toggle Fullscreen"
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-[#1fc16b]" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-4 h-4 text-[#22c55e]" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* Game Settings */}
+          {/* Game Settings (44x44 target, tooltip, aria-label) */}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-xl bg-black/40 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-black/40 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer"
             title="Game Settings"
             aria-label="Game Settings"
           >
-            <Settings className="w-4 h-4 text-[#1fc16b]" />
+            <Settings className="w-4 h-4 text-[#22c55e]" />
           </button>
         </div>
       </header>
 
       {/* Mobile Tab Bar */}
-      <div className="md:hidden flex bg-[#07190e] border-b border-white/10 px-3 py-1.5 gap-2 text-xs font-orbitron justify-around">
+      <div className="md:hidden flex bg-[#0a1a10] border-b border-white/10 px-3 py-1.5 gap-2 text-xs font-display justify-around">
         <button
           onClick={() => setActiveTab('gameplay')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-1 justify-center transition-all ${
-            activeTab === 'gameplay' ? 'bg-[#1fc16b] text-black font-bold' : 'text-slate-300'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-1 justify-center transition-all ${
+            activeTab === 'gameplay' ? 'bg-[#22c55e] text-black font-bold' : 'text-slate-300'
           }`}
         >
           <Gamepad2 className="w-3.5 h-3.5" />
@@ -560,8 +653,8 @@ export default function App() {
         </button>
         <button
           onClick={() => setActiveTab('community')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-1 justify-center transition-all ${
-            activeTab === 'community' ? 'bg-[#1fc16b] text-black font-bold' : 'text-slate-300'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-1 justify-center transition-all ${
+            activeTab === 'community' ? 'bg-[#22c55e] text-black font-bold' : 'text-slate-300'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
@@ -569,8 +662,8 @@ export default function App() {
         </button>
         <button
           onClick={() => setActiveTab('guide')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-1 justify-center transition-all ${
-            activeTab === 'guide' ? 'bg-[#1fc16b] text-black font-bold' : 'text-slate-300'
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-1 justify-center transition-all ${
+            activeTab === 'guide' ? 'bg-[#22c55e] text-black font-bold' : 'text-slate-300'
           }`}
         >
           <Compass className="w-3.5 h-3.5" />
@@ -578,23 +671,26 @@ export default function App() {
         </button>
       </div>
 
-      {/* Floating In-Game Toast Notifications */}
-      <div className="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">
+      {/* Floating In-Game Toast Notifications with aria-live */}
+      <div
+        className="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"
+        aria-live="polite"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
             className={`pointer-events-auto p-3.5 rounded-2xl backdrop-blur-lg border shadow-2xl flex items-center gap-3 transition-all animate-in fade-in slide-in-from-top-4 ${
               toast.type === 'success'
-                ? 'bg-[#082213]/95 border-[#1fc16b] text-white'
+                ? 'bg-[#0a1a10]/95 border-[#22c55e] text-white'
                 : toast.type === 'warning'
-                ? 'bg-[#291307]/95 border-[#f26522] text-white'
-                : 'bg-[#06141c]/95 border-sky-500 text-white'
+                ? 'bg-[#1a0f08]/95 border-[#ff6a1a] text-white'
+                : 'bg-[#08151c]/95 border-sky-500 text-white'
             }`}
           >
             {toast.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-[#1fc16b] shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#22c55e] shrink-0" />
             ) : toast.type === 'warning' ? (
-              <AlertCircle className="w-4 h-4 text-[#f26522] shrink-0" />
+              <AlertCircle className="w-4 h-4 text-[#ff6a1a] shrink-0" />
             ) : (
               <Info className="w-4 h-4 text-sky-400 shrink-0" />
             )}
@@ -632,6 +728,8 @@ export default function App() {
                 weather={weather}
                 cameraMode={cameraMode}
                 activeMission={activeMission}
+                missions={missions}
+                onSelectMission={setActiveMission}
                 selectedLandmark={selectedLandmark}
                 artifacts={artifacts}
                 onWeatherChange={setWeather}
@@ -648,45 +746,33 @@ export default function App() {
                 onOpenRealEstate={() => setIsRealEstateOpen(true)}
                 onOpenPhotoMode={() => setIsPhotoModeOpen(true)}
                 onCloseLandmark={() => setSelectedLandmark(null)}
+                onTeleportToLandmark={handleTeleportToLandmark}
               />
             </div>
 
-            {/* Quick Strip: Landmark Jumps & Mission Objectives */}
-            <div className="bg-[#06140b] border-t border-[#1fc16b]/30 p-2.5 sm:p-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto py-0.5">
-                <span className="text-[10px] font-orbitron font-bold uppercase text-[#1fc16b] tracking-wider flex items-center gap-1 whitespace-nowrap mr-1">
+            {/* Quick Jump Strip: Landmark chips horizontally scrollable with edge fades (Part B item 6) */}
+            <div className="bg-[#0a1a10] border-t border-white/10 p-2.5 sm:p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 overflow-x-auto w-full py-0.5 no-scrollbar mask-fade-edges">
+                <span className="text-[10px] font-display font-bold uppercase text-[#22c55e] tracking-wider flex items-center gap-1 whitespace-nowrap mr-1 shrink-0">
                   <Navigation className="w-3 h-3" /> Quick Jump:
                 </span>
-                {UYO_LANDMARKS.slice(0, 6).map((lm) => (
-                  <button
-                    key={lm.id}
-                    onClick={() => handleTeleportToLandmark(lm)}
-                    className="px-2.5 py-1 rounded-lg bg-black/40 hover:bg-[#1fc16b]/20 border border-white/10 hover:border-[#1fc16b]/40 text-[11px] font-space text-slate-200 hover:text-white transition-all whitespace-nowrap"
-                  >
-                    {lm.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Missions quick selector */}
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-[10px] font-orbitron uppercase text-[#f26522] font-bold whitespace-nowrap">
-                  Job:
-                </span>
-                <select
-                  value={activeMission?.id || ''}
-                  onChange={(e) => {
-                    const found = missions.find((m) => m.id === e.target.value);
-                    if (found) setActiveMission(found);
-                  }}
-                  className="bg-black/60 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1fc16b]"
-                >
-                  {missions.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-[#06140b] text-white">
-                      {m.title} {m.completed ? '✓ (Completed)' : `(+₦${m.rewardCoins})`}
-                    </option>
-                  ))}
-                </select>
+                {UYO_LANDMARKS.map((lm) => {
+                  const isActive = selectedLandmark?.id === lm.id;
+                  return (
+                    <button
+                      key={lm.id}
+                      onClick={() => handleTeleportToLandmark(lm)}
+                      className={`px-3 py-1 rounded-full border text-[11px] font-display transition-all whitespace-nowrap cursor-pointer shrink-0 truncate max-w-[170px] ${
+                        isActive
+                          ? 'bg-[#22c55e] text-black font-bold border-[#22c55e] shadow-sm'
+                          : 'bg-black/40 hover:bg-white/10 border-white/10 text-slate-200 hover:text-white'
+                      }`}
+                      title={lm.name}
+                    >
+                      {lm.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -736,10 +822,12 @@ export default function App() {
         playerCoins={playerCoins}
         unlockedModels={unlockedModels}
         unlockedDecals={unlockedDecals}
+        vehicleHealth={vehicleState.health}
         onSelectModel={setVehicleModel}
         onUpdateCustomization={setCustomization}
         onUnlockVehicle={handleUnlockVehicle}
         onUpgradeEngine={handleUpgradeEngine}
+        onRepairVehicle={handleRepairVehicle}
         onOpenDailyRewards={() => {
           setIsGarageOpen(false);
           setIsDailyRewardOpen(true);
@@ -774,6 +862,9 @@ export default function App() {
 
       <DakkadaObservatoryModal
         isOpen={isObservatoryOpen}
+        artifacts={artifacts}
+        properties={properties}
+        unlockedModels={unlockedModels}
         onClose={() => setIsObservatoryOpen(false)}
       />
 

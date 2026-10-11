@@ -21,7 +21,6 @@ import {
   Moon,
   CloudRain,
   Wind,
-  Eye,
   Footprints,
   Car,
   Flame,
@@ -34,11 +33,13 @@ import {
   Landmark as LandmarkIcon,
   Shield,
   Gift,
-  Music2,
   Disc3,
   Sliders,
   ChevronDown,
   ChevronUp,
+  MapPin,
+  Target,
+  Navigation,
 } from 'lucide-react';
 
 interface GameHUDProps {
@@ -48,6 +49,8 @@ interface GameHUDProps {
   weather: WeatherType;
   cameraMode: CameraMode;
   activeMission: Mission | null;
+  missions?: Mission[];
+  onSelectMission?: (m: Mission) => void;
   selectedLandmark: Landmark | null;
   artifacts: CollectibleArtifact[];
   onWeatherChange: (w: WeatherType) => void;
@@ -64,6 +67,7 @@ interface GameHUDProps {
   onOpenRealEstate: () => void;
   onOpenPhotoMode: () => void;
   onCloseLandmark: () => void;
+  onTeleportToLandmark?: (lm: Landmark) => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -73,6 +77,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   weather,
   cameraMode,
   activeMission,
+  missions = [],
+  onSelectMission,
   selectedLandmark,
   artifacts,
   onWeatherChange,
@@ -80,7 +86,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onPlayerModeChange,
   onOpenGarage,
   onOpenDailyRewards,
-  hasDailyRewardReady = false,
+  hasDailyRewardReady,
   onOpenLeaderboard,
   onOpenQuests,
   onOpenShootout,
@@ -89,6 +95,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenRealEstate,
   onOpenPhotoMode,
   onCloseLandmark,
+  onTeleportToLandmark,
 }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.isMuteActive());
   const [isRadioOn, setIsRadioOn] = useState(soundEngine.isRadioOn());
@@ -164,301 +171,275 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
   const collectedCount = artifacts.filter((a) => a.collected).length;
 
+  // Real-time distance to target landmark
+  const targetLandmark = UYO_LANDMARKS.find((lm) => lm.id === activeMission?.targetLandmarkId);
+  const distanceToTarget = targetLandmark
+    ? Math.round(Math.hypot(currentX - targetLandmark.position[0], currentZ - targetLandmark.position[2]))
+    : null;
+
+  const displaySpeed = playerMode === 'walking' ? avatarState.speed : vehicleState.speed;
+  const isSpeedHigh = displaySpeed > 80;
+
   return (
-    <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-3 sm:p-4">
-      {/* Top Bar: Weather, Camera, Drive/Walk Toggle, Quick Hotspots, Radio */}
-      <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-        {/* Left: Weather and Time selector */}
-        <div className="pointer-events-auto flex items-center bg-[#061109]/85 backdrop-blur-md border border-[#1fc16b]/30 rounded-2xl p-1 shadow-xl gap-1">
-          <button
-            onClick={() => onWeatherChange('clear')}
-            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              weather === 'clear'
-                ? 'bg-[#1fc16b] text-black font-semibold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Sunny Noon"
-          >
-            <Sun className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Midday</span>
-          </button>
-          <button
-            onClick={() => onWeatherChange('golden_hour')}
-            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              weather === 'golden_hour'
-                ? 'bg-[#f26522] text-white font-semibold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Sunset Golden Hour"
-          >
-            <Sun className="w-3.5 h-3.5 text-amber-200" />
-            <span className="hidden sm:inline">Sunset</span>
-          </button>
-          <button
-            onClick={() => onWeatherChange('night_neon')}
-            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              weather === 'night_neon'
-                ? 'bg-[#38bdf8] text-black font-semibold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Neon Night"
-          >
-            <Moon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Night</span>
-          </button>
-          <button
-            onClick={() => onWeatherChange('tropical_rain')}
-            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              weather === 'tropical_rain'
-                ? 'bg-[#60a5fa] text-black font-semibold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Tropical Rainstorm"
-          >
-            <CloudRain className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Rain</span>
-          </button>
-          <button
-            onClick={() => onWeatherChange('harmattan')}
-            className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              weather === 'harmattan'
-                ? 'bg-[#d97706] text-white font-semibold shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Harmattan Haze"
-          >
-            <Wind className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Haze</span>
-          </button>
-        </div>
-
-        {/* Center: Drive/Walk Toggle & Hotspots */}
-        <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 overflow-x-auto py-1">
-          <button
-            onClick={() => onPlayerModeChange(playerMode === 'driving' ? 'walking' : 'driving')}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1.5 border shadow-xl transition-all ${
-              playerMode === 'walking'
-                ? 'bg-[#1fc16b] text-black border-[#1fc16b]'
-                : 'bg-[#06140b]/90 text-white border-[#1fc16b]/40 hover:bg-[#1fc16b]/20'
-            }`}
-            title="Press 'E' to exit/enter vehicle"
-          >
-            {playerMode === 'walking' ? (
-              <>
-                <Car className="w-3.5 h-3.5" />
-                <span>Drive (E)</span>
-              </>
-            ) : (
-              <>
-                <Footprints className="w-3.5 h-3.5 text-[#1fc16b]" />
-                <span>Walk (E)</span>
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={onOpenGarage}
-            className="px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-white border border-[#f26522]/50 hover:bg-[#f26522]/20 shadow-xl transition-all"
-            title="Tuning Garage"
-          >
-            <Wrench className="w-3.5 h-3.5 text-[#f26522]" />
-            <span className="hidden sm:inline">Garage</span>
-          </button>
-
-          {onOpenDailyRewards && (
+    <div className="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-2.5 sm:p-4 select-none">
+      {/* SECONDARY ACTION ROW: Scrollable Tray with Fade-Edge Masks (Part B) */}
+      <div className="w-full relative">
+        <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto py-1 px-1 no-scrollbar mask-fade-edges">
+          {/* Time & Weather Grouped Selector */}
+          <div className="flex items-center rounded-full bg-[#0a1a10]/85 backdrop-blur-md border border-white/10 p-1 shrink-0 gap-1">
+            <span className="text-[10px] font-mono text-[#9db8a8] px-1.5 uppercase font-semibold">Time</span>
             <button
-              onClick={onOpenDailyRewards}
-              className={`relative px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 transition-all ${
-                hasDailyRewardReady
-                  ? 'bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-400 text-amber-300 shadow-xl shadow-amber-500/20 animate-pulse'
-                  : 'bg-[#06140b]/90 text-slate-300 border border-white/20 hover:bg-white/10'
+              onClick={() => onWeatherChange('clear')}
+              className={`px-2.5 py-1 rounded-full text-xs font-display transition-all cursor-pointer ${
+                weather === 'clear'
+                  ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                  : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
               }`}
-              title="Daily Uyo Login Rewards"
+              title="Midday Noon"
+              aria-label="Midday Weather"
             >
-              <Gift className={`w-3.5 h-3.5 ${hasDailyRewardReady ? 'text-amber-400' : 'text-slate-400'}`} />
-              <span className="hidden sm:inline">Daily Bonus</span>
-              {hasDailyRewardReady && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-black" />
+              <Sun className="w-3.5 h-3.5 inline mr-1" />
+              Midday
+            </button>
+            <button
+              onClick={() => onWeatherChange('golden_hour')}
+              className={`px-2.5 py-1 rounded-full text-xs font-display transition-all cursor-pointer ${
+                weather === 'golden_hour'
+                  ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                  : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
+              }`}
+              title="Sunset Golden Hour"
+              aria-label="Sunset Weather"
+            >
+              Sunset
+            </button>
+            <button
+              onClick={() => onWeatherChange('night_neon')}
+              className={`px-2.5 py-1 rounded-full text-xs font-display transition-all cursor-pointer ${
+                weather === 'night_neon'
+                  ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                  : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
+              }`}
+              title="Neon Night"
+              aria-label="Night Weather"
+            >
+              <Moon className="w-3.5 h-3.5 inline mr-1" />
+              Night
+            </button>
+
+            {/* Subtle Group Divider */}
+            <div className="w-[1px] h-4 bg-white/15 mx-0.5" />
+            <span className="text-[10px] font-mono text-[#9db8a8] px-1.5 uppercase font-semibold">Sky</span>
+
+            <button
+              onClick={() => onWeatherChange('tropical_rain')}
+              className={`px-2.5 py-1 rounded-full text-xs font-display transition-all cursor-pointer ${
+                weather === 'tropical_rain'
+                  ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                  : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
+              }`}
+              title="Tropical Rain"
+              aria-label="Tropical Rain Weather"
+            >
+              <CloudRain className="w-3.5 h-3.5 inline mr-1" />
+              Rain
+            </button>
+            <button
+              onClick={() => onWeatherChange('harmattan')}
+              className={`px-2.5 py-1 rounded-full text-xs font-display transition-all cursor-pointer ${
+                weather === 'harmattan'
+                  ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                  : 'text-[#9db8a8] hover:text-white hover:bg-white/5'
+              }`}
+              title="Harmattan Haze"
+              aria-label="Harmattan Weather"
+            >
+              <Wind className="w-3.5 h-3.5 inline mr-1" />
+              Haze
+            </button>
+          </div>
+
+          {/* Action Pills: Clean neutral outline, active is colored (Part A & B) */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Walk / Drive Mode Toggle */}
+            <button
+              onClick={() => onPlayerModeChange(playerMode === 'driving' ? 'walking' : 'driving')}
+              className={`px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                playerMode === 'walking'
+                  ? 'bg-[#22c55e] text-black border-[#22c55e] font-bold shadow-sm'
+                  : 'bg-[#0a1a10]/80 border-white/10 text-slate-200 hover:border-white/20 hover:text-white'
+              }`}
+              title="Toggle Driving / Walking Mode (HotKey: E)"
+              aria-label="Toggle Walk Drive Mode"
+            >
+              {playerMode === 'walking' ? (
+                <>
+                  <Car className="w-3.5 h-3.5" />
+                  <span>Drive <span className="hidden md:inline">(E)</span></span>
+                </>
+              ) : (
+                <>
+                  <Footprints className="w-3.5 h-3.5 text-[#22c55e]" />
+                  <span>Walk <span className="hidden md:inline">(E)</span></span>
+                </>
               )}
             </button>
-          )}
 
-          {onOpenLeaderboard && (
+            {/* Garage */}
             <button
-              onClick={onOpenLeaderboard}
-              className="px-2.5 sm:px-3 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-amber-300 border border-amber-400/50 hover:bg-amber-400/20 shadow-xl transition-all cursor-pointer"
-              title="Uyo Legends Global Leaderboard"
+              onClick={onOpenGarage}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Vehicle Customization Garage & Repairs"
+              aria-label="Open Garage"
             >
-              <Trophy className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Legends</span>
+              <Wrench className="w-3.5 h-3.5 text-[#ff6a1a]" />
+              <span>Garage</span>
             </button>
-          )}
 
-          {/* Interactive Hotspot Buttons */}
-          <button
-            onClick={onOpenShootout}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 shadow-xl transition-all"
-            title="Nest of Champions Shootout"
-          >
-            <Trophy className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden md:inline">Shootout</span>
-          </button>
+            {/* Legends */}
+            {onOpenLeaderboard && (
+              <button
+                onClick={onOpenLeaderboard}
+                className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+                title="Uyo Legends Leaderboard & Lore"
+                aria-label="Open Uyo Legends"
+              >
+                <Trophy className="w-3.5 h-3.5 text-[#fbbf24]" />
+                <span>Legends</span>
+              </button>
+            )}
 
-          <button
-            onClick={onOpenObservatory}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-sky-300 border border-sky-500/40 hover:bg-sky-500/20 shadow-xl transition-all"
-            title="Dakkada Sky Observatory"
-          >
-            <Building2 className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden md:inline">Deck</span>
-          </button>
-
-          <button
-            onClick={onOpenFoodKiosk}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-amber-300 border border-amber-500/40 hover:bg-amber-500/20 shadow-xl transition-all"
-            title="Akwa Ibom Food Kiosk"
-          >
-            <Utensils className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Food</span>
-          </button>
-
-          <button
-            onClick={onOpenRealEstate}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-purple-300 border border-purple-500/40 hover:bg-purple-500/20 shadow-xl transition-all"
-            title="Property Deeds"
-          >
-            <LandmarkIcon className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden md:inline">Estate</span>
-          </button>
-
-          <button
-            onClick={onOpenPhotoMode}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-white border border-white/20 hover:bg-white/10 shadow-xl transition-all"
-            title="Cinematic Photo Mode"
-          >
-            <Camera className="w-3.5 h-3.5 text-white" />
-            <span className="hidden md:inline">Photo</span>
-          </button>
-
-          <button
-            onClick={onOpenQuests}
-            className="px-2.5 py-1.5 rounded-2xl text-xs font-orbitron font-bold flex items-center gap-1 bg-[#06140b]/90 text-amber-300 border border-amber-500/40 hover:bg-amber-500/20 shadow-xl transition-all"
-            title="Cultural Relics"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>{collectedCount}/{artifacts.length}</span>
-          </button>
-        </div>
-
-        {/* Right: Audio and Radio */}
-        <div className="pointer-events-auto flex items-center bg-[#061109]/85 backdrop-blur-md border border-[#1fc16b]/30 rounded-2xl p-1 shadow-xl gap-1">
-          <button
-            onClick={handleToggleRadio}
-            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all ${
-              isRadioOn
-                ? 'bg-gradient-to-r from-[#f26522] to-[#1fc16b] text-white font-bold shadow-md shadow-[#1fc16b]/20'
-                : 'text-slate-300 hover:text-white hover:bg-white/5'
-            }`}
-            title="Toggle Afrobeats Radio"
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isRadioOn ? 'Radio ON' : 'Radio'}</span>
-          </button>
-
-          {isRadioOn && (
+            {/* Shootout */}
             <button
-              onClick={() => setIsRadioDrawerOpen(!isRadioDrawerOpen)}
-              className="px-2 py-1 rounded-xl text-[10px] font-mono bg-black/60 text-[#1fc16b] hover:bg-white/10 flex items-center gap-1 transition-all"
-              title="Open Radio Tuner"
+              onClick={onOpenShootout}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Nest of Champions Penalty Shootout"
+              aria-label="Open Penalty Shootout"
             >
-              <Sliders className="w-3 h-3" />
-              <span className="hidden md:inline">Tuner</span>
-              {isRadioDrawerOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              <Target className="w-3.5 h-3.5 text-[#22c55e]" />
+              <span>Shootout</span>
             </button>
-          )}
 
-          <button
-            onClick={handleToggleMute}
-            className="p-1 sm:p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
-            title="Mute / Unmute"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-[#1fc16b]" />}
-          </button>
+            {/* Deck */}
+            <button
+              onClick={onOpenObservatory}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Dakkada 21st Floor Deck & Relic Cards"
+              aria-label="Open Sky Deck"
+            >
+              <Building2 className="w-3.5 h-3.5 text-[#38bdf8]" />
+              <span>Deck</span>
+            </button>
+
+            {/* Food */}
+            <button
+              onClick={onOpenFoodKiosk}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Akwa Ibom Food Kiosk"
+              aria-label="Open Food Kiosk"
+            >
+              <Utensils className="w-3.5 h-3.5 text-[#fbbf24]" />
+              <span>Food</span>
+            </button>
+
+            {/* Estate */}
+            <button
+              onClick={onOpenRealEstate}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Real Estate Property Deeds"
+              aria-label="Open Real Estate"
+            >
+              <LandmarkIcon className="w-3.5 h-3.5 text-purple-400" />
+              <span>Estate</span>
+            </button>
+
+            {/* Photo */}
+            <button
+              onClick={onOpenPhotoMode}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Cinematic Photo Mode"
+              aria-label="Open Photo Mode"
+            >
+              <Camera className="w-3.5 h-3.5 text-white" />
+              <span>Photo</span>
+            </button>
+
+            {/* 0/5 Relics Counter */}
+            <button
+              onClick={onOpenQuests}
+              className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#0a1a10]/80 border border-white/10 text-slate-200 hover:border-white/20 hover:text-white transition-all cursor-pointer"
+              title="Cultural Relics Challenge: Discover all 5"
+              aria-label="Open Relics Challenge"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#fbbf24]" />
+              <span>Relics {collectedCount}/{artifacts.length}</span>
+            </button>
+
+            {/* Radio Pill */}
+            <div className="flex items-center rounded-full bg-[#0a1a10]/85 border border-white/10 p-0.5 gap-0.5">
+              <button
+                onClick={handleToggleRadio}
+                className={`px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isRadioOn
+                    ? 'bg-[#22c55e] text-black font-bold shadow-sm'
+                    : 'text-[#9db8a8] hover:text-white'
+                }`}
+                title="Toggle Afrobeats Radio"
+                aria-label="Toggle Radio"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>{isRadioOn ? 'Radio ON' : 'Radio'}</span>
+              </button>
+
+              {isRadioOn && (
+                <button
+                  onClick={() => setIsRadioDrawerOpen(!isRadioDrawerOpen)}
+                  className="p-1.5 rounded-full text-[#22c55e] hover:bg-white/10 transition-colors"
+                  title="Open Radio Tuner"
+                  aria-label="Open Radio Tuner"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={handleToggleMute}
+                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                title="Mute / Unmute Audio"
+                aria-label="Toggle Mute"
+              >
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-[#22c55e]" />}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* On-Air DJ Announcement Broadcast Banner */}
       {djAnnouncement && (
-        <div className="pointer-events-auto self-center bg-gradient-to-r from-[#0d2a17] via-[#09351d] to-[#0d2a17] border border-[#1fc16b] rounded-2xl px-4 py-2 text-xs text-white shadow-2xl flex items-center gap-2.5 max-w-lg w-full animate-in fade-in slide-in-from-top-3 mt-1.5 z-20">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#f26522] animate-ping shrink-0" />
-          <span className="font-orbitron font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1fc16b]/20 text-[#1fc16b] border border-[#1fc16b]/40 shrink-0">
+        <div className="pointer-events-auto self-center bg-[#0a1a10]/95 backdrop-blur-md border border-[#22c55e]/50 rounded-2xl px-4 py-2 text-xs text-white shadow-2xl flex items-center gap-2.5 max-w-lg w-full animate-in fade-in slide-in-from-top-3 mt-1 z-20">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#ff6a1a] animate-ping shrink-0" />
+          <span className="font-display font-bold text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40 shrink-0">
             ON AIR
           </span>
-          <p className="text-slate-100 font-medium text-[11px] leading-tight line-clamp-2">
+          <p className="text-slate-100 font-medium text-xs leading-tight line-clamp-2">
             {djAnnouncement}
           </p>
         </div>
       )}
 
-      {/* Radio Station Now Playing Bar & Real-Time Equalizer */}
-      {isRadioOn && (
-        <div className="pointer-events-auto self-center bg-black/85 backdrop-blur-md border border-[#1fc16b]/50 rounded-2xl px-4 py-2 text-[11px] flex flex-wrap items-center justify-between gap-3 shadow-2xl mt-1.5 max-w-xl w-full">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span
-              className="px-2 py-0.5 rounded-lg text-[10px] font-orbitron font-black text-black shrink-0 shadow-sm"
-              style={{ backgroundColor: stationInfo.accentColor }}
-            >
-              {stationInfo.frequency}
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-orbitron font-bold text-white text-xs">{stationInfo.name}</span>
-                <span className="text-[10px] text-slate-400 font-sans">• {stationInfo.genre}</span>
-              </div>
-              <p className="text-[#f26522] font-medium text-[11px] truncate">
-                {stationInfo.currentTrack} <span className="text-slate-400 text-[10px]">({stationInfo.artist})</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 ml-auto">
-            {/* Animated 8-Band Equalizer Spectrum */}
-            <div className="flex items-end gap-[3px] h-5 px-2 py-0.5 bg-black/60 rounded-lg border border-white/10 shrink-0">
-              {visualizerBars.map((val, i) => (
-                <div
-                  key={i}
-                  className="w-1 rounded-sm transition-all duration-75"
-                  style={{
-                    height: `${Math.max(15, Math.min(100, val * 100))}%`,
-                    backgroundColor: stationInfo.accentColor,
-                  }}
-                />
-              ))}
-            </div>
-
-            <button
-              onClick={handleStationCycle}
-              className="px-2 py-1 rounded-xl text-[10px] font-orbitron font-bold bg-[#1fc16b]/15 text-[#1fc16b] hover:bg-[#1fc16b]/30 border border-[#1fc16b]/40 cursor-pointer shrink-0 transition-all"
-              title="Next Station"
-            >
-              Next ⟳
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Expanded Radio Tuner Drawer */}
+      {/* Radio Tuner Drawer (Expandable) */}
       {isRadioOn && isRadioDrawerOpen && (
-        <div className="pointer-events-auto self-center bg-[#07190e]/95 backdrop-blur-xl border border-[#1fc16b] rounded-3xl p-4 shadow-2xl mt-2 max-w-xl w-full animate-in fade-in zoom-in-95 z-30">
+        <div className="pointer-events-auto self-center bg-[#0a1a10]/95 backdrop-blur-xl border border-white/15 rounded-3xl p-4 shadow-2xl mt-1.5 max-w-xl w-full animate-in fade-in zoom-in-95 z-30">
           <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
             <div className="flex items-center gap-2">
-              <Disc3 className="w-4 h-4 text-[#1fc16b] animate-spin" />
-              <h4 className="font-orbitron font-bold text-xs text-white uppercase tracking-wider">
+              <Disc3 className="w-4 h-4 text-[#22c55e] animate-spin" />
+              <h4 className="font-display font-bold text-xs text-white uppercase tracking-wider">
                 Uyo FM Radio Tuner
               </h4>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 font-mono">VOL</span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[10px] text-[#9db8a8] font-mono">VOL</span>
               <input
                 type="range"
                 min="0"
@@ -466,7 +447,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 step="0.05"
                 value={radioVolume}
                 onChange={handleVolumeChange}
-                className="w-20 accent-[#1fc16b] cursor-pointer"
+                className="w-20 accent-[#22c55e] cursor-pointer"
+                aria-label="Radio Volume Slider"
               />
               <button
                 onClick={() => setIsRadioDrawerOpen(false)}
@@ -486,20 +468,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onClick={() => handleSelectStation(id)}
                   className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-[#1fc16b]/20 border-[#1fc16b] text-white shadow-lg shadow-[#1fc16b]/10 ring-1 ring-[#1fc16b]'
-                      : 'bg-black/40 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/5'
+                      ? 'bg-[#22c55e]/20 border-[#22c55e] text-white shadow-md ring-1 ring-[#22c55e]'
+                      : 'bg-black/40 border-white/10 text-slate-300 hover:border-white/30'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-orbitron font-bold text-xs text-white">{meta.name}</span>
-                    <span
-                      className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono text-black"
-                      style={{ backgroundColor: meta.accentColor }}
-                    >
+                    <span className="font-display font-bold text-xs text-white">{meta.name}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono bg-white/10 text-slate-200">
                       {meta.frequency}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-sans truncate">{meta.genre}</p>
+                  <p className="text-[10px] text-[#9db8a8] truncate">{meta.genre}</p>
                 </button>
               );
             })}
@@ -509,98 +488,102 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* Selected Landmark Drawer */}
       {selectedLandmark && (
-        <div className="pointer-events-auto self-center max-w-md w-full bg-[#07170d]/95 backdrop-blur-lg border border-[#1fc16b] rounded-2xl p-4 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4">
+        <div className="pointer-events-auto self-center max-w-md w-full bg-[#0a1a10]/95 backdrop-blur-lg border border-[#22c55e]/50 rounded-2xl p-4 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1fc16b]/20 text-[#1fc16b] border border-[#1fc16b]/40">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40">
                 {selectedLandmark.tag}
               </span>
-              <h3 className="font-orbitron font-bold text-white text-lg mt-1">{selectedLandmark.name}</h3>
+              <h3 className="font-display font-bold text-white text-lg mt-1">{selectedLandmark.name}</h3>
             </div>
             <button
               onClick={onCloseLandmark}
               className="text-slate-400 hover:text-white text-sm p-1 rounded-lg hover:bg-white/10"
+              aria-label="Close landmark info"
             >
               ✕
             </button>
           </div>
           <p className="text-slate-200 text-xs leading-relaxed mb-2">{selectedLandmark.desc}</p>
-          <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px] text-[#f26522] font-medium">
+          <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px] text-[#ff6a1a] font-medium">
             💡 {selectedLandmark.historicalNote}
           </div>
         </div>
       )}
 
-      {/* Bottom Bar: Telemetry, Speedometer / Walker Stats, Radar */}
+      {/* BOTTOM HUD STRIP: Speedometer, Objective Card with JOB Selector, Radar (Part B) */}
       <div className="flex items-end justify-between gap-3 sm:gap-4 w-full">
-        {/* Speedometer, Durability & Nitro Telemetry */}
-        <div className="pointer-events-auto bg-[#061109]/90 backdrop-blur-md border border-[#1fc16b]/40 rounded-2xl p-3 shadow-2xl flex flex-col gap-2 min-w-[210px]">
+        {/* 1. SPEEDOMETER & TELEMETRY (Speed largest element, 44-52px, tabular-nums) */}
+        <div className="pointer-events-auto bg-[#0a1a10]/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-2xl flex flex-col gap-2 min-w-[210px] sm:min-w-[230px]">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-space tracking-widest text-[#1fc16b]/80 font-bold">
+              <span className="text-[10px] uppercase font-mono tracking-wider text-[#22c55e] font-bold">
                 {playerMode === 'walking' ? 'PEDESTRIAN' : vehicleState.model.toUpperCase()}
               </span>
-              <div className="flex items-baseline gap-1">
-                <span className="font-orbitron font-black text-2xl sm:text-3xl text-white tracking-tight">
-                  {playerMode === 'walking' ? avatarState.speed : vehicleState.speed}
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="font-display font-black text-4xl sm:text-5xl text-white tracking-tight tabular-nums">
+                  {displaySpeed}
                 </span>
-                <span className="text-xs font-semibold text-slate-400 font-space">KM/H</span>
+                <span className="text-xs font-bold text-[#9db8a8] font-mono">KM/H</span>
               </div>
             </div>
-            {/* Speed circular arc */}
-            <div className="relative w-11 h-11 flex items-center justify-center">
+
+            {/* Speed Circular Fill Gauge */}
+            <div className="relative w-12 h-12 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90">
-                <circle cx="22" cy="22" r="16" fill="none" stroke="#132a1c" strokeWidth="3.5" />
+                <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
                 <circle
-                  cx="22"
-                  cy="22"
-                  r="16"
+                  cx="24"
+                  cy="24"
+                  r="18"
                   fill="none"
-                  stroke={vehicleState.speed > 80 ? '#f26522' : '#1fc16b'}
-                  strokeWidth="3.5"
-                  strokeDasharray={100}
-                  strokeDashoffset={100 - (Math.min(130, vehicleState.speed) / 130) * 100}
+                  stroke={isSpeedHigh ? '#ff6a1a' : '#22c55e'}
+                  strokeWidth="4"
+                  strokeDasharray={113}
+                  strokeDashoffset={113 - (Math.min(140, displaySpeed) / 140) * 113}
                   strokeLinecap="round"
                   className="transition-all duration-75"
                 />
               </svg>
-              <Compass className="w-3.5 h-3.5 text-slate-400 absolute" />
+              <Compass className="w-4 h-4 text-[#9db8a8] absolute" />
             </div>
           </div>
 
-          {/* Durability / Health Bar */}
-          <div className="space-y-1 pt-1 border-t border-white/10">
+          {/* Durability / Health Bar with Rounded Ends & Pulse under 25% */}
+          <div className="space-y-1 pt-1.5 border-t border-white/10">
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
+              <span className="text-[#22c55e] font-bold flex items-center gap-1 font-mono">
                 <Shield className="w-3 h-3" /> CHASSIS DURABILITY
               </span>
-              <span className="font-mono text-white">{vehicleState.health}%</span>
+              <span className="font-mono text-white tabular-nums">{vehicleState.health}%</span>
             </div>
-            <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden p-[1px] border border-white/10">
               <div
-                className={`h-full rounded-full transition-all ${
-                  vehicleState.health < 40 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'
+                className={`h-full rounded-full transition-all duration-150 ${
+                  vehicleState.health < 25
+                    ? 'bg-red-500 animate-pulse'
+                    : 'bg-gradient-to-r from-emerald-500 to-[#22c55e]'
                 }`}
                 style={{ width: `${vehicleState.health}%` }}
               />
             </div>
           </div>
 
-          {/* Nitro gauge (driving) */}
+          {/* Nitro Gauge with Gradient Fill & Pulse on Active */}
           {playerMode === 'driving' && (
             <div className="space-y-1">
               <div className="flex items-center justify-between text-[10px]">
-                <span className="text-sky-400 font-bold flex items-center gap-1">
+                <span className="text-[#38bdf8] font-bold flex items-center gap-1 font-mono">
                   <Flame className="w-3 h-3" /> NITRO BOOST (SHIFT)
                 </span>
-                <span className="font-mono text-white">{vehicleState.nitroRemaining}%</span>
+                <span className="font-mono text-white tabular-nums">{vehicleState.nitroRemaining}%</span>
               </div>
-              <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-black/60 rounded-full overflow-hidden p-[1px] border border-white/10">
                 <div
-                  className={`h-full rounded-full transition-all ${
+                  className={`h-full rounded-full transition-all duration-100 ${
                     vehicleState.isNitroActive
-                      ? 'bg-gradient-to-r from-sky-400 to-[#f26522] animate-pulse'
-                      : 'bg-sky-500'
+                      ? 'bg-gradient-to-r from-sky-400 to-[#ff6a1a] animate-pulse'
+                      : 'bg-gradient-to-r from-sky-500 to-[#38bdf8]'
                   }`}
                   style={{ width: `${vehicleState.nitroRemaining}%` }}
                 />
@@ -609,7 +592,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           )}
 
           {playerMode === 'walking' && (
-            <div className="text-[10px] text-slate-300 flex items-center gap-2 border-t border-white/10 pt-1">
+            <div className="text-[10px] text-[#9db8a8] flex items-center gap-2 border-t border-white/10 pt-1 font-mono">
               <span>Shift: Sprint</span>
               <span>•</span>
               <span>Space: Jump</span>
@@ -617,44 +600,98 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           )}
         </div>
 
-        {/* Center: Mission Card */}
+        {/* 2. OBJECTIVE CARD WITH INTEGRATED JOB SELECTOR (Part B item 4) */}
         {activeMission && (
-          <div className="pointer-events-auto hidden sm:flex flex-col max-w-xs bg-[#061109]/90 backdrop-blur-md border border-[#f26522]/50 rounded-2xl p-3 shadow-2xl">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-[10px] uppercase font-bold text-[#f26522] tracking-wider flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#f26522] animate-ping" />
+          <div className="pointer-events-auto hidden sm:flex flex-col max-w-sm w-full bg-[#0a1a10]/95 backdrop-blur-md border border-white/10 border-l-4 border-l-[#ff6a1a] rounded-2xl p-3.5 shadow-2xl space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase font-bold text-[#ff6a1a] tracking-wider flex items-center gap-1.5 font-mono">
+                <span className="w-2 h-2 rounded-full bg-[#ff6a1a] animate-ping shrink-0" />
                 OBJECTIVE ({activeMission.type.toUpperCase()})
               </span>
-              <span className="text-[10px] font-bold text-[#1fc16b] font-mono">
-                +₦{activeMission.rewardCoins}
+              <span className="text-xs font-bold text-[#fbbf24] font-mono tabular-nums">
+                +₦{activeMission.rewardCoins.toLocaleString()}
               </span>
             </div>
-            <h4 className="font-orbitron font-bold text-white text-xs truncate">{activeMission.title}</h4>
-            <p className="text-slate-300 text-[11px] leading-tight line-clamp-2 mt-0.5">{activeMission.brief}</p>
+
+            <div>
+              <h4 className="font-display font-bold text-white text-xs sm:text-sm truncate">
+                {activeMission.title}
+              </h4>
+              <p className="text-[#9db8a8] text-xs leading-snug line-clamp-2 mt-0.5">
+                {activeMission.brief}
+              </p>
+            </div>
+
+            {/* Distance to target and progress line */}
+            {distanceToTarget !== null && (
+              <div className="space-y-1 pt-1 border-t border-white/10">
+                <div className="flex items-center justify-between text-[10px] text-[#9db8a8] font-mono">
+                  <span className="flex items-center gap-1">
+                    <Navigation className="w-3 h-3 text-[#ff6a1a]" /> Distance to Landmark:
+                  </span>
+                  <span className="text-white font-bold tabular-nums">{distanceToTarget} m</span>
+                </div>
+                <div className="w-full h-1 bg-black/60 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#ff6a1a] rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.max(5, Math.min(100, 100 - (distanceToTarget / 600) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Integrated Job Dropdown matching the objective card */}
+            {missions.length > 0 && onSelectMission && (
+              <div className="pt-1 flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase text-[#9db8a8] font-bold">Select:</span>
+                <select
+                  value={activeMission.id}
+                  onChange={(e) => {
+                    const m = missions.find((x) => x.id === e.target.value);
+                    if (m) onSelectMission(m);
+                  }}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white font-display focus:outline-none focus:border-[#22c55e] cursor-pointer"
+                  aria-label="Select Current Objective Job"
+                >
+                  {missions.map((m) => (
+                    <option key={m.id} value={m.id} className="bg-[#0a1a10] text-white">
+                      {m.title} {m.completed ? '✓' : `(+₦${m.rewardCoins.toLocaleString()})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Right: Circular Minimap Radar */}
-        <div className="pointer-events-auto relative w-[130px] h-[130px] rounded-full bg-[#050e08]/90 border-2 border-[#1fc16b]/60 shadow-2xl backdrop-blur-md overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-2 rounded-full border border-[#1fc16b]/20" />
-          <div className="absolute inset-8 rounded-full border border-[#1fc16b]/20" />
-          <div className="absolute w-full h-[1px] bg-[#1fc16b]/20" />
-          <div className="absolute h-full w-[1px] bg-[#1fc16b]/20" />
+        {/* 3. MINIMAP RADAR with Cardinal Marker (N), Faint Sweep, & Glow Ring (Part B item 5) */}
+        <div className="pointer-events-auto relative w-[130px] h-[130px] rounded-full bg-[#050e08]/90 border border-white/15 ring-2 ring-[#22c55e]/30 shadow-[0_0_24px_rgba(34,197,94,0.15)] backdrop-blur-md overflow-hidden flex items-center justify-center shrink-0">
+          <div className="absolute inset-2 rounded-full border border-[#22c55e]/15" />
+          <div className="absolute inset-8 rounded-full border border-[#22c55e]/15" />
+          <div className="absolute w-full h-[1px] bg-[#22c55e]/15" />
+          <div className="absolute h-full w-[1px] bg-[#22c55e]/15" />
 
-          {/* Sweeping scanline */}
+          {/* North Cardinal Marker */}
+          <div className="absolute top-1 font-mono text-[9px] font-bold text-[#fbbf24] z-10">
+            N
+          </div>
+
+          {/* Faint Sweeping Scanline */}
           <div
             className="absolute inset-0 rounded-full"
             style={{
-              background: 'conic-gradient(from 0deg, transparent 0deg, rgba(31, 193, 107, 0.25) 360deg)',
+              background: 'conic-gradient(from 0deg, transparent 0deg, rgba(34, 197, 94, 0.22) 360deg)',
               animation: 'spin 4s linear infinite',
             }}
           />
 
           {/* Ibom Plaza center node */}
           <div
-            className="absolute w-2 h-2 rounded-full bg-[#1fc16b] ring-2 ring-[#1fc16b]/40"
+            className="absolute w-2 h-2 rounded-full bg-[#22c55e] ring-2 ring-[#22c55e]/40"
             style={{ left: radarCenterX - 4, top: radarCenterY - 4 }}
-            title="Ibom Plaza (Center)"
+            title="Ibom Plaza (City Center)"
           />
 
           {/* Landmark dots */}
@@ -668,7 +705,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 key={lm.id}
                 className={`absolute rounded-full transition-transform ${
                   isTarget
-                    ? 'w-3 h-3 bg-[#f26522] ring-4 ring-[#f26522]/40 animate-bounce'
+                    ? 'w-3 h-3 bg-[#ff6a1a] ring-4 ring-[#ff6a1a]/40 animate-bounce z-10'
                     : 'w-1.5 h-1.5 bg-sky-400'
                 }`}
                 style={{ left: lx - (isTarget ? 6 : 3), top: ly - (isTarget ? 6 : 3) }}
@@ -679,7 +716,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
           {/* Player pointer */}
           <div
-            className="absolute w-3.5 h-3.5 text-[#f26522] drop-shadow-md z-10"
+            className="absolute w-3.5 h-3.5 text-[#ff6a1a] drop-shadow-md z-20"
             style={{
               left: Math.min(radarSize - 10, Math.max(10, playerRadarX - 7)),
               top: Math.min(radarSize - 10, Math.max(10, playerRadarY - 7)),
@@ -689,7 +726,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             ▲
           </div>
 
-          <span className="absolute bottom-1 text-[8px] font-space text-slate-400 uppercase font-semibold">
+          <span className="absolute bottom-1 text-[8px] font-mono text-[#9db8a8] uppercase font-semibold">
             RADAR
           </span>
         </div>

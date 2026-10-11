@@ -1,7 +1,7 @@
 import React from 'react';
 import { VehicleModel, VehicleCustomization } from '../types/game';
 import { VEHICLE_CATALOG } from '../data/gameData';
-import { Wrench, Check, Lock, Coins, Sparkles, X, Palette, Gift } from 'lucide-react';
+import { Wrench, Check, Lock, Coins, Sparkles, X, Shield, Flame, Gauge } from 'lucide-react';
 import { EXCLUSIVE_DECALS } from '../utils/dailyReward';
 
 interface GarageModalProps {
@@ -11,10 +11,12 @@ interface GarageModalProps {
   playerCoins: number;
   unlockedModels: string[];
   unlockedDecals?: string[];
+  vehicleHealth?: number;
   onSelectModel: (model: VehicleModel) => void;
   onUpdateCustomization: (c: VehicleCustomization) => void;
   onUnlockVehicle: (model: VehicleModel, cost: number) => void;
   onUpgradeEngine: (stage: number, cost: number) => void;
+  onRepairVehicle?: () => void;
   onOpenDailyRewards?: () => void;
   onClose: () => void;
 }
@@ -26,55 +28,66 @@ export const GarageModal: React.FC<GarageModalProps> = ({
   playerCoins,
   unlockedModels,
   unlockedDecals = ['none'],
+  vehicleHealth = 100,
   onSelectModel,
   onUpdateCustomization,
   onUnlockVehicle,
   onUpgradeEngine,
+  onRepairVehicle,
   onOpenDailyRewards,
   onClose,
 }) => {
   if (!isOpen) return null;
 
   const colorPalette = [
-    { name: 'Uyo Solar Orange', hex: '#f26522' },
+    { name: 'Uyo Solar Orange', hex: '#ff6a1a' },
     { name: 'Akwa Ibom Forest Green', hex: '#0e4b25' },
-    { name: 'Cyber Neon Mint', hex: '#1fc16b' },
+    { name: 'Cyber Neon Mint', hex: '#22c55e' },
     { name: 'Dakkada Obsidian', hex: '#111827' },
     { name: 'Pure Pearl White', hex: '#f8fafc' },
-    { name: 'Tropicana Gold', hex: '#f59e0b' },
+    { name: 'Tropicana Gold', hex: '#fbbf24' },
   ];
 
   const underglowOptions = [
     { name: 'Off', val: 'none' },
-    { name: 'Emerald', val: '#1fc16b' },
-    { name: 'Orange', val: '#f26522' },
+    { name: 'Emerald', val: '#22c55e' },
+    { name: 'Orange', val: '#ff6a1a' },
     { name: 'Electric Cyan', val: '#38bdf8' },
   ];
 
+  const repairCost = Math.round((100 - vehicleHealth) * 12);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="relative w-full max-w-4xl max-h-[92vh] bg-[#07190e] border border-[#1fc16b] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-4xl max-h-[92vh] bg-[#0a1a10] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#092213]">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/10 bg-[#10261a]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#f26522]/20 text-[#f26522]">
+            <div className="p-2.5 rounded-2xl bg-[#ff6a1a]/20 text-[#ff6a1a]">
               <Wrench className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-orbitron font-bold text-lg text-white">
-                Uyoverse Customs & Vehicle Garage
+              <h3 className="font-display font-bold text-lg text-white">
+                Uyoverse Customs & Tuning Garage
               </h3>
-              <p className="text-xs text-slate-400">Select vehicles, apply custom paint wraps, and tune engines</p>
+              <p className="text-xs text-[#9db8a8]">Inspect vehicle stats, repair chassis, and apply performance wraps</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/50 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold">
-              <Coins className="w-3.5 h-3.5 text-amber-400" />
-              <span>₦{playerCoins.toLocaleString()} Ibom Coins</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 border border-white/10 text-[#fbbf24] font-mono text-xs font-bold tabular-nums">
+              <Coins className="w-3.5 h-3.5 text-[#fbbf24]" />
+              <span>₦{playerCoins.toLocaleString()}</span>
             </div>
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close garage"
             >
               <X className="w-5 h-5" />
             </button>
@@ -82,14 +95,52 @@ export const GarageModal: React.FC<GarageModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-8">
-          {/* 1. Vehicle Fleet Selector */}
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
+          {/* Workshop Chassis Repair Banner */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <Shield className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-display font-bold text-sm text-white">Chassis Integrity</h4>
+                  <span
+                    className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
+                      vehicleHealth < 40
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse'
+                        : 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40'
+                    }`}
+                  >
+                    {vehicleHealth}%
+                  </span>
+                </div>
+                <p className="text-xs text-[#9db8a8] mt-0.5">
+                  {vehicleHealth === 100
+                    ? 'Chassis in showroom condition.'
+                    : `Workshop mechanics can overhaul damage for ₦${repairCost.toLocaleString()} Ibom Coins.`}
+                </p>
+              </div>
+            </div>
+
+            {onRepairVehicle && vehicleHealth < 100 && (
+              <button
+                onClick={onRepairVehicle}
+                className="w-full sm:w-auto px-4 py-2 rounded-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all shrink-0"
+              >
+                <Wrench className="w-3.5 h-3.5" />
+                Overhaul & Repair (₦{repairCost})
+              </button>
+            )}
+          </div>
+
+          {/* 1. Vehicle Fleet & Stats Comparison */}
           <div className="space-y-3">
-            <h4 className="font-orbitron font-bold text-sm text-white flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#1fc16b]" />
-              Akwa Ibom Vehicle Fleet
+            <h4 className="font-display font-bold text-sm text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#22c55e]" />
+              Akwa Ibom Vehicle Fleet & Stats
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               {VEHICLE_CATALOG.map((v) => {
                 const isSelected = currentModel === v.id;
                 const isUnlocked = unlockedModels.includes(v.id);
@@ -98,258 +149,20 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                     key={v.id}
                     className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-[#1fc16b]/15 border-[#1fc16b] shadow-lg shadow-[#1fc16b]/20 ring-1 ring-[#1fc16b]'
-                        : 'bg-black/40 border-white/10 hover:border-white/30'
+                        ? 'bg-[#22c55e]/15 border-[#22c55e] shadow-lg shadow-[#22c55e]/10 ring-1 ring-[#22c55e]'
+                        : isUnlocked
+                        ? 'bg-black/40 border-white/10 hover:border-white/20'
+                        : 'bg-black/60 border-white/5 opacity-75'
                     }`}
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-1 mb-1">
-                        <span className="text-[10px] font-space px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-semibold">
-                          {v.category}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-300">
+                          {v.tag}
                         </span>
                         {isSelected && (
-                          <span className="text-[10px] font-orbitron font-bold text-[#1fc16b] flex items-center gap-0.5">
-                            <Check className="w-3 h-3" /> ACTIVE
-                          </span>
-                        )}
-                      </div>
-                      <h5 className="font-orbitron font-bold text-white text-xs mt-1">{v.name}</h5>
-                      <p className="text-slate-400 text-[11px] leading-tight mt-1 line-clamp-2">{v.description}</p>
-                    </div>
-
-                    <div className="space-y-1.5 my-3 pt-2 border-t border-white/5 text-[10px]">
-                      <div className="flex justify-between text-slate-300">
-                        <span>Top Speed</span>
-                        <span className="font-mono text-white font-bold">{v.topSpeedKmh} km/h</span>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Acceleration</span>
-                        <span className="font-mono text-white font-bold">{v.acceleration}/10</span>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Handling</span>
-                        <span className="font-mono text-white font-bold">{v.handling}/10</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      {isUnlocked ? (
-                        <button
-                          onClick={() => onSelectModel(v.id as VehicleModel)}
-                          disabled={isSelected}
-                          className={`w-full py-1.5 rounded-xl font-orbitron font-bold text-xs transition-all ${
-                            isSelected
-                              ? 'bg-[#1fc16b] text-black cursor-default'
-                              : 'bg-white/10 hover:bg-white/20 text-white'
-                          }`}
-                        >
-                          {isSelected ? 'Equipped' : 'Select'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => onUnlockVehicle(v.id as VehicleModel, v.costCoins)}
-                          className="w-full py-1.5 rounded-xl bg-[#f26522] hover:bg-[#d94b08] text-white font-orbitron font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md"
-                        >
-                          <Lock className="w-3 h-3" /> Unlock (₦{v.costCoins.toLocaleString()})
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. Paint Shop & Underglow */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/10">
-            {/* Exterior Colors */}
-            <div className="space-y-3">
-              <h4 className="font-orbitron font-bold text-sm text-white">
-                Custom Paint Finish
-              </h4>
-              <div className="grid grid-cols-3 gap-2.5">
-                {colorPalette.map((c) => {
-                  const isEquipped = customization.color.toLowerCase() === c.hex.toLowerCase();
-                  return (
-                    <button
-                      key={c.hex}
-                      onClick={() => onUpdateCustomization({ ...customization, color: c.hex })}
-                      className={`p-2.5 rounded-xl border flex items-center gap-2 transition-all ${
-                        isEquipped
-                          ? 'border-[#1fc16b] bg-[#1fc16b]/20 text-white ring-1 ring-[#1fc16b]'
-                          : 'border-white/10 bg-black/30 hover:border-white/30 text-slate-300'
-                      }`}
-                    >
-                      <div className="w-5 h-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c.hex }} />
-                      <span className="text-[11px] truncate font-space">{c.name.split(' ')[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Neon Underglow */}
-            <div className="space-y-3">
-              <h4 className="font-orbitron font-bold text-sm text-white">
-                Neon Ground Underglow
-              </h4>
-              <div className="grid grid-cols-2 gap-2.5">
-                {underglowOptions.map((u) => {
-                  const isEquipped = customization.neonUnderglow === u.val;
-                  return (
-                    <button
-                      key={u.val}
-                      onClick={() => onUpdateCustomization({ ...customization, neonUnderglow: u.val })}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
-                        isEquipped
-                          ? 'border-[#1fc16b] bg-[#1fc16b]/20 text-white ring-1 ring-[#1fc16b]'
-                          : 'border-white/10 bg-black/30 hover:border-white/30 text-slate-300'
-                      }`}
-                    >
-                      <span>{u.name}</span>
-                      {u.val !== 'none' && (
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: u.val }} />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Performance Engine Stages */}
-          <div className="space-y-3 pt-4 border-t border-white/10">
-            <h4 className="font-orbitron font-bold text-sm text-white">
-              Engine Performance Stages
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { stage: 1, name: 'Stock Factory ECU', desc: 'Standard Uyo city calibration.', cost: 0 },
-                { stage: 2, name: 'Stage 2 Twin Intake', desc: '+15% Acceleration boost and faster nitro recharge.', cost: 1500 },
-                { stage: 3, name: 'Stage 3 Dakkada Turbo', desc: '+30% Top speed, quad-spark plug, maximum torque.', cost: 3500 },
-              ].map((s) => {
-                const isActive = customization.engineStage === s.stage;
-                return (
-                  <div
-                    key={s.stage}
-                    className={`p-4 rounded-2xl border flex flex-col justify-between ${
-                      isActive
-                        ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-1 ring-[#1fc16b]'
-                        : 'bg-black/30 border-white/10'
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[10px] font-mono font-bold text-[#1fc16b]">STAGE {s.stage}</span>
-                      <h5 className="font-orbitron font-bold text-white text-xs mt-0.5">{s.name}</h5>
-                      <p className="text-slate-400 text-[11px] mt-1">{s.desc}</p>
-                    </div>
-                    <div className="mt-3 pt-2 border-t border-white/5">
-                      {isActive ? (
-                        <span className="text-xs font-orbitron font-bold text-[#1fc16b] flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> INSTALLED
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => onUpgradeEngine(s.stage, s.cost)}
-                          className="w-full py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-orbitron font-bold text-xs transition-all"
-                        >
-                          Upgrade (₦{s.cost.toLocaleString()})
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 4. Exclusive Daily Login Decals & Livery */}
-          <div className="space-y-3 pt-4 border-t border-white/10">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h4 className="font-orbitron font-bold text-sm text-white flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-[#1fc16b]" />
-                  Exclusive Daily Login Decals & Liveries
-                </h4>
-                <p className="text-xs text-slate-400">
-                  Earned via daily check-in milestones. Apply custom aerodynamic stripes and Akwa Ibom cultural emblems.
-                </p>
-              </div>
-              {onOpenDailyRewards && (
-                <button
-                  onClick={onOpenDailyRewards}
-                  className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-500/40 text-amber-300 font-orbitron font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Gift className="w-3.5 h-3.5 text-amber-400" />
-                  View Daily Rewards
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Default No Decal Option */}
-              <div
-                className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
-                  !customization.decal || customization.decal === 'none'
-                    ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-1 ring-[#1fc16b]'
-                    : 'bg-black/30 border-white/10 hover:border-white/20'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono text-slate-400">FACTORY FINISH</span>
-                    {(!customization.decal || customization.decal === 'none') && (
-                      <span className="text-[10px] font-orbitron font-bold text-[#1fc16b] flex items-center gap-1">
-                        <Check className="w-3 h-3" /> EQUIPPED
-                      </span>
-                    )}
-                  </div>
-                  <h5 className="font-orbitron font-bold text-white text-xs">Standard Clean Livery</h5>
-                  <p className="text-[11px] text-slate-400 mt-1">Clean uniform exterior without additional livery stripes.</p>
-                </div>
-                <button
-                  onClick={() => onUpdateCustomization({ ...customization, decal: 'none' })}
-                  disabled={!customization.decal || customization.decal === 'none'}
-                  className={`mt-3 w-full py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
-                    !customization.decal || customization.decal === 'none'
-                      ? 'bg-[#1fc16b] text-black cursor-default'
-                      : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer'
-                  }`}
-                >
-                  {!customization.decal || customization.decal === 'none' ? 'Active' : 'Equip Clean'}
-                </button>
-              </div>
-
-              {/* Exclusive Daily Decals */}
-              {EXCLUSIVE_DECALS.map((d) => {
-                const isUnlocked = unlockedDecals.includes(d.id);
-                const isEquipped = customization.decal === d.id;
-
-                return (
-                  <div
-                    key={d.id}
-                    className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden ${
-                      isEquipped
-                        ? 'bg-[#1fc16b]/15 border-[#1fc16b] ring-1 ring-[#1fc16b] shadow-lg shadow-[#1fc16b]/10'
-                        : isUnlocked
-                        ? 'bg-black/30 border-white/10 hover:border-white/20'
-                        : 'bg-black/40 border-white/5 opacity-70'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span
-                          className="text-[9px] font-mono px-2 py-0.5 rounded font-bold uppercase"
-                          style={{
-                            backgroundColor: `${d.primaryColor}25`,
-                            color: d.primaryColor,
-                          }}
-                        >
-                          Day {d.day} Login
-                        </span>
-                        {isEquipped && (
-                          <span className="text-[10px] font-orbitron font-bold text-[#1fc16b] flex items-center gap-1">
-                            <Check className="w-3 h-3" /> ACTIVE
+                          <span className="text-[10px] font-display font-bold text-[#22c55e] flex items-center gap-1">
+                            <Check className="w-3 h-3" /> EQUIPPED
                           </span>
                         )}
                         {!isUnlocked && (
@@ -359,45 +172,147 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 my-2">
-                        <div
-                          className="w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 relative overflow-hidden"
-                          style={{
-                            borderColor: d.primaryColor,
-                            background: `linear-gradient(135deg, ${d.primaryColor}30, ${d.accentColor}30)`,
-                          }}
-                        >
-                          <div className="w-full h-1 absolute top-1" style={{ backgroundColor: d.primaryColor }} />
-                          <div className="w-full h-0.5 absolute bottom-1" style={{ backgroundColor: d.accentColor }} />
-                          <Sparkles className="w-3.5 h-3.5" style={{ color: d.primaryColor }} />
-                        </div>
+                      <h5 className="font-display font-bold text-white text-sm">{v.name}</h5>
+                      <p className="text-xs text-[#9db8a8] mt-1 line-clamp-2">{v.desc}</p>
+
+                      {/* Stat Bars (Part C) */}
+                      <div className="my-3 space-y-1.5 pt-2 border-t border-white/5 text-[10px]">
                         <div>
-                          <h5 className="font-orbitron font-bold text-white text-xs">{d.name}</h5>
+                          <div className="flex justify-between text-[#9db8a8] mb-0.5">
+                            <span className="flex items-center gap-1"><Gauge className="w-3 h-3 text-[#22c55e]" /> Top Speed</span>
+                            <span className="font-mono text-white">{v.topSpeed} km/h</span>
+                          </div>
+                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-[#22c55e] rounded-full" style={{ width: `${(v.topSpeed / 220) * 100}%` }} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-[#9db8a8] mb-0.5">
+                            <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-sky-400" /> Armor / Weight</span>
+                            <span className="font-mono text-white">{v.handling}</span>
+                          </div>
+                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-sky-400 rounded-full" style={{ width: v.id === 'bus' ? '90%' : v.id === 'coupe' ? '70%' : '50%' }} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-[#9db8a8] mb-0.5">
+                            <span className="flex items-center gap-1"><Flame className="w-3 h-3 text-[#ff6a1a]" /> Acceleration</span>
+                            <span className="font-mono text-white">{v.accel}</span>
+                          </div>
+                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-[#ff6a1a] rounded-full" style={{ width: v.id === 'coupe' ? '95%' : v.id === 'taxi' ? '65%' : '45%' }} />
+                          </div>
                         </div>
                       </div>
-
-                      <p className="text-[11px] text-slate-400 line-clamp-2">{d.description}</p>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-white/5">
+                    <div className="pt-2 border-t border-white/5">
                       {isUnlocked ? (
                         <button
-                          onClick={() => onUpdateCustomization({ ...customization, decal: d.id })}
-                          disabled={isEquipped}
-                          className={`w-full py-1.5 rounded-xl text-xs font-orbitron font-bold transition-all ${
-                            isEquipped
-                              ? 'bg-[#1fc16b] text-black cursor-default'
+                          onClick={() => onSelectModel(v.id as VehicleModel)}
+                          disabled={isSelected}
+                          className={`w-full py-2 rounded-full text-xs font-display font-bold transition-all ${
+                            isSelected
+                              ? 'bg-[#22c55e] text-black cursor-default'
                               : 'bg-white/10 hover:bg-white/20 text-white cursor-pointer'
                           }`}
                         >
-                          {isEquipped ? 'Equipped' : 'Equip Decal'}
+                          {isSelected ? 'Currently Driving' : 'Select Vehicle'}
                         </button>
                       ) : (
-                        <div className="w-full py-1.5 rounded-xl bg-black/50 border border-white/10 text-center text-[10px] font-mono text-slate-400 flex items-center justify-center gap-1">
-                          <Lock className="w-3 h-3 text-amber-400" /> Unlock on Day {d.day}
-                        </div>
+                        <button
+                          onClick={() => onUnlockVehicle(v.id as VehicleModel, v.priceCoins)}
+                          className="w-full py-2 rounded-full bg-[#fbbf24] hover:bg-[#f59e0b] text-black text-xs font-display font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                        >
+                          <Coins className="w-3.5 h-3.5" />
+                          Unlock for ₦{v.priceCoins.toLocaleString()}
+                        </button>
                       )}
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Paint Wrap & Underglow */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+            <h4 className="font-display font-bold text-sm text-white">Color Wraps & Neon Underglow</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span className="text-xs text-[#9db8a8] block mb-2">Exterior High-Gloss Paint:</span>
+                <div className="flex flex-wrap gap-2">
+                  {colorPalette.map((c) => (
+                    <button
+                      key={c.hex}
+                      onClick={() => onUpdateCustomization({ ...customization, color: c.hex })}
+                      className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer ${
+                        customization.color === c.hex ? 'border-white scale-110 ring-2 ring-[#22c55e]' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                      aria-label={`Color ${c.name}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs text-[#9db8a8] block mb-2">Neon Ground Glow:</span>
+                <div className="flex flex-wrap gap-2">
+                  {underglowOptions.map((opt) => (
+                    <button
+                      key={opt.val}
+                      onClick={() => onUpdateCustomization({ ...customization, neonUnderglow: opt.val })}
+                      className={`px-3 py-1.5 rounded-full text-xs font-display font-semibold border transition-all cursor-pointer ${
+                        customization.neonUnderglow === opt.val
+                          ? 'bg-[#22c55e]/20 border-[#22c55e] text-white'
+                          : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {opt.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Engine Stages */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-display font-bold text-sm text-white">Engine Performance Tuning</h4>
+              <span className="text-xs font-mono text-[#22c55e]">Stage {customization.engineStage} Active</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { stage: 1, name: 'Stock Tarmac Tune', cost: 0, boost: '+0% Speed' },
+                { stage: 2, name: 'Turbo Sport ECU', cost: 3500, boost: '+15% Speed' },
+                { stage: 3, name: 'Dakkada Apex V8', cost: 8500, boost: '+30% Speed' },
+              ].map((s) => {
+                const isCurrent = customization.engineStage === s.stage;
+                return (
+                  <div key={s.stage} className="p-3 rounded-2xl border border-white/10 bg-black/50 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-display font-bold">
+                      <span className="text-white">{s.name}</span>
+                      <span className="text-[#22c55e]">{s.boost}</span>
+                    </div>
+                    {isCurrent ? (
+                      <div className="text-[11px] font-mono text-[#22c55e] flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Installed
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => onUpgradeEngine(s.stage, s.cost)}
+                        disabled={playerCoins < s.cost}
+                        className="w-full py-1.5 rounded-full bg-[#fbbf24] hover:bg-[#f59e0b] text-black text-xs font-display font-bold cursor-pointer disabled:opacity-40"
+                      >
+                        Tune for ₦{s.cost.toLocaleString()}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -406,10 +321,10 @@ export const GarageModal: React.FC<GarageModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-white/10 bg-[#092213] flex justify-end">
+        <div className="p-4 border-t border-white/10 bg-[#10261a] flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 rounded-xl bg-[#1fc16b] hover:bg-[#19a55a] text-black font-orbitron font-bold text-xs shadow-lg transition-all"
+            className="px-6 py-2 rounded-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-display font-bold text-xs shadow-lg transition-all cursor-pointer"
           >
             Done / Close Garage
           </button>
