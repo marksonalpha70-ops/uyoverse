@@ -1,5 +1,17 @@
 import React from 'react';
-import { Settings, Volume2, VolumeX, Radio, RotateCcw, Monitor, X, Check, Sparkles } from 'lucide-react';
+import {
+  Settings,
+  Volume2,
+  VolumeX,
+  Radio,
+  RotateCcw,
+  Monitor,
+  X,
+  Check,
+  Sparkles,
+  Trash2,
+  Database,
+} from 'lucide-react';
 import { GraphicsQuality, CelebrationEffectMode } from '../types/game';
 import { soundEngine } from '../utils/AudioSynthesizer';
 import { triggerCelebration } from '../utils/celebration';
@@ -11,6 +23,7 @@ interface GameSettingsModalProps {
   onSetGraphicsQuality: (q: GraphicsQuality) => void;
   onSetCelebrationMode: (m: CelebrationEffectMode) => void;
   onResetVehicle: () => void;
+  onResetProgress: () => void;
   onClose: () => void;
 }
 
@@ -21,10 +34,12 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
   onSetGraphicsQuality,
   onSetCelebrationMode,
   onResetVehicle,
+  onResetProgress,
   onClose,
 }) => {
   const [isMuted, setIsMuted] = React.useState(soundEngine.isMuteActive());
   const [isRadioOn, setIsRadioOn] = React.useState(soundEngine.isRadioOn());
+  const [confirmingReset, setConfirmingReset] = React.useState(false);
 
   if (!isOpen) return null;
 
@@ -242,11 +257,61 @@ export const GameSettingsModal: React.FC<GameSettingsModalProps> = ({
               <RotateCcw className="w-3.5 h-3.5" /> Reset Vehicle to Ibom Plaza
             </button>
           </div>
+
+          {/* Save Data & Danger Zone */}
+          <div className="space-y-2.5 pt-4 border-t border-white/10">
+            <h4 className="font-orbitron font-bold text-xs text-white uppercase tracking-wider flex items-center gap-2">
+              <Database className="w-4 h-4 text-[#38bdf8]" /> Save Data
+            </h4>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Your progress — Ibom Coins, XP, completed jobs, collected relics, vehicles, upgrades and
+              properties — is saved automatically on this device. Daily Bonus streaks and unlocked decals are
+              stored separately and are kept.
+            </p>
+
+            {confirmingReset ? (
+              <div className="p-3 rounded-2xl bg-red-950/30 border border-red-500/60 space-y-2.5">
+                <p className="text-[11px] text-red-200 font-medium leading-snug">
+                  Wipe all saved progress? This permanently resets your economy, garage, real estate, missions
+                  and collectibles on this device. Cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setConfirmingReset(false);
+                      onResetProgress();
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-orbitron font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Yes, Wipe Progress
+                  </button>
+                  <button
+                    onClick={() => setConfirmingReset(false)}
+                    className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-orbitron font-bold text-xs transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingReset(true)}
+                className="w-full py-2.5 rounded-xl bg-red-950/30 hover:bg-red-900/40 border border-red-500/40 text-red-300 font-orbitron font-bold text-xs flex items-center justify-center gap-2 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Reset All Progress (Wipe Save)
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t border-white/10 bg-[#092213] flex justify-between items-center text-[11px] text-slate-400">
-          <span>Uyoverse v1.0 • Land of Promise</span>
+          <span className="flex items-center gap-1.5">
+            Uyoverse v1.1 • Land of Promise
+            <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded bg-[#1fc16b]/15 border border-[#1fc16b]/40 text-[#1fc16b] font-bold">
+              AUTO-SAVE ON
+            </span>
+          </span>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-[#1fc16b] hover:bg-[#19a55a] text-black font-orbitron font-bold text-xs shadow-md transition-all"

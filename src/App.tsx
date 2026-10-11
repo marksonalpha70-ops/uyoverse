@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { GameHUD } from './components/GameHUD';
 import { CommunityLobbyView } from './components/CommunityLobbyView';
@@ -38,6 +38,8 @@ import {
   CelebrationEffectMode,
 } from './types/game';
 import { getCelebrationMode, setCelebrationMode } from './utils/celebration';
+import { loadGameSave, clearGameSave, computeOfflineRent } from './utils/gameSave';
+import { useGameSave } from './hooks/useGameSave';
 import { getDailyRewardStatus, getUnlockedDecalIds, getDecalById } from './utils/dailyReward';
 import {
   GAME_MISSIONS,
@@ -70,13 +72,19 @@ interface InGameToast {
 }
 
 export default function App() {
+  // Persistent save: hydrated once per launch, autosaved via useGameSave below
+  const [savedGame] = useState(() => loadGameSave());
+
   const [activeTab, setActiveTab] = useState<NavTab>('gameplay');
-  const [weather, setWeather] = useState<WeatherType>('clear');
-  const [cameraMode, setCameraMode] = useState<CameraMode>('chase');
+  const [weather, setWeather] = useState<WeatherType>(savedGame?.weather ?? 'clear');
+  const [cameraMode, setCameraMode] = useState<CameraMode>(savedGame?.cameraMode ?? 'chase');
   const [playerMode, setPlayerMode] = useState<PlayerMode>('driving');
-  const [vehicleModel, setVehicleModel] = useState<VehicleModel>('taxi');
-  const [unlockedModels, setUnlockedModels] = useState<string[]>(['taxi', 'keke']);
-  const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>('medium');
+  const [unlockedModels, setUnlockedModels] = useState<string[]>(savedGame?.unlockedModels ?? ['taxi', 'keke']);
+  const [vehicleModel, setVehicleModel] = useState<VehicleModel>(() => {
+    const saved = savedGame?.vehicleModel as VehicleModel | undefined;
+    return saved && (savedGame?.unlockedModels ?? []).includes(saved) ? saved : 'taxi';
+  });
+  const [graphicsQuality, setGraphicsQuality] = useState<GraphicsQuality>(savedGame?.graphicsQuality ?? 'medium');
   const [celebrationMode, setCelebrationModeState] = useState<CelebrationEffectMode>(() => getCelebrationMode());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [toasts, setToasts] = useState<InGameToast[]>([]);
@@ -94,19 +102,29 @@ export default function App() {
     );
   };
 
-  const [customization, setCustomization] = useState<VehicleCustomization>({
-    color: '#f26522',
-    neonUnderglow: 'none',
-    engineStage: 1,
-    roofLight: true,
-    decal: 'none',
-  });
+  const [customization, setCustomization] = useState<VehicleCustomization>(
+    savedGame?.customization ?? {
+      color: '#f26522',
+      neonUnderglow: 'none',
+      engineStage: 1,
+      roofLight: true,
+      decal: 'none',
+    }
+  );
 
-  const [missions, setMissions] = useState<Mission[]>(GAME_MISSIONS);
-  const [activeMission, setActiveMission] = useState<Mission | null>(GAME_MISSIONS[0]);
+  const [missions, setMissions] = useState<Mission[]>(() =>
+    GAME_MISSIONS.map((m) => ({ ...m, completed: savedGame?.completedMissionIds.includes(m.id) ?? false }))
+  );
+  const [activeMission, setActiveMission] = useState<Mission | null>(
+    () => missions.find((m) => !m.completed) ?? missions[0]
+  );
   const [selectedLandmark, setSelectedLandmark] = useState<Landmark | null>(null);
-  const [artifacts, setArtifacts] = useState<CollectibleArtifact[]>(COLLECTIBLE_ARTIFACTS);
-  const [properties, setProperties] = useState<VirtualProperty[]>(PROPERTIES_CATALOG);
+  const [artifacts, setArtifacts] = useState<CollectibleArtifact[]>(() =>
+    COLLECTIBLE_ARTIFACTS.map((a) => ({ ...a, collected: savedGame?.collectedArtifactIds.includes(a.id) ?? false }))
+  );
+  const [properties, setProperties] = useState<VirtualProperty[]>(() =>
+    PROPERTIES_CATALOG.map((p) => ({ ...p, owned: savedGame?.ownedPropertyIds.includes(p.id) ?? false }))
+  );
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -124,10 +142,20 @@ export default function App() {
   const [dailyRewardStatus, setDailyRewardStatus] = useState(() => getDailyRewardStatus());
   const [unlockedDecals, setUnlockedDecals] = useState<string[]>(() => getUnlockedDecalIds());
 
-  // Economy & progression
-  const [playerXP, setPlayerXP] = useState(450);
-  const [playerCoins, setPlayerCoins] = useState(6500);
-  const [uncollectedRent, setUncollectedRent] = useState(350);
+  // Economy & progression (restored from persistent save)
+  const [playerXP, setPlayerXP] = useState(savedGame?.playerXP ?? 450);
+  const [playerCoins, setPlayerCoins] = useState(savedGame?.playerCoins ?? 6500);
+
+  // Rental income accrued while the game was closed (capped at 24h), added once at launch
+  const [offlineRentEarned] = useState(() => {
+    if (!savedGame) return 0;
+    const hourlyYield = PROPERTIES_CATALOG.filter((p) => savedGame.ownedPropertyIds.includes(p.id)).reduce(
+      (sum, p) => sum + p.hourlyYieldCoins,
+      0
+    );
+    return computeOfflineRent(savedGame.lastPlayed, hourlyYield);
+  });
+  const [uncollectedRent, setUncollectedRent] = useState((savedGame?.uncollectedRent ?? 350) + offlineRentEarned);
 
   const [vehicleState, setVehicleState] = useState<VehicleState>({
     x: 0,
@@ -162,6 +190,18 @@ export default function App() {
     }, 3500);
   };
 
+  // Welcome-back notification for offline rental earnings
+  const offlineToastShown = useRef(false);
+  useEffect(() => {
+    if (offlineRentEarned > 0 && !offlineToastShown.current) {
+      offlineToastShown.current = true;
+      showToast(
+        `🌙 Welcome back! Your properties earned ₦${offlineRentEarned.toLocaleString()} in rent while you were away.`,
+        'info'
+      );
+    }
+  }, [offlineRentEarned]);
+
   // Passive property income accumulator
   useEffect(() => {
     const timer = setInterval(() => {
@@ -190,6 +230,11 @@ export default function App() {
     } else {
       document.exitFullscreen().catch(() => {});
     }
+  };
+
+  const handleResetProgress = () => {
+    clearGameSave();
+    window.location.reload();
   };
 
   const handleResetVehicle = () => {
@@ -374,6 +419,22 @@ export default function App() {
     }));
     showToast('🚀 Jumped to convoy coordinates!', 'info');
   };
+
+  // Debounced autosave of all durable progression state
+  useGameSave({
+    playerXP,
+    playerCoins,
+    uncollectedRent,
+    unlockedModels,
+    vehicleModel,
+    customization,
+    graphicsQuality,
+    weather,
+    cameraMode,
+    completedMissionIds: missions.filter((m) => m.completed).map((m) => m.id),
+    collectedArtifactIds: artifacts.filter((a) => a.collected).map((a) => a.id),
+    ownedPropertyIds: properties.filter((p) => p.owned).map((p) => p.id),
+  });
 
   return (
     <div className="min-h-screen bg-[#040c07] text-white flex flex-col font-sans selection:bg-[#1fc16b] selection:text-black">
@@ -663,6 +724,7 @@ export default function App() {
         onSetGraphicsQuality={setGraphicsQuality}
         onSetCelebrationMode={handleSetCelebrationMode}
         onResetVehicle={handleResetVehicle}
+        onResetProgress={handleResetProgress}
         onClose={() => setIsSettingsOpen(false)}
       />
 
