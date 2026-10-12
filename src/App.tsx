@@ -749,6 +749,7 @@ export default function App() {
                 onCameraModeChange={setCameraMode}
                 onPlayerModeChange={setPlayerMode}
                 onCollectArtifact={handleCollectArtifact}
+                isPaused={isLiveSimulationOpen}
               />
               <GameHUD
                 vehicleState={vehicleState}

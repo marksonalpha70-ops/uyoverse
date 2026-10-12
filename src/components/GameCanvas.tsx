@@ -32,6 +32,7 @@ interface GameCanvasProps {
   onCameraModeChange: (mode: CameraMode) => void;
   onPlayerModeChange: (mode: PlayerMode) => void;
   onCollectArtifact: (id: string) => void;
+  isPaused?: boolean;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -49,8 +50,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onCameraModeChange,
   onPlayerModeChange,
   onCollectArtifact,
+  isPaused = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isPausedRef = useRef(isPaused);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   // References across render loop
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -175,7 +182,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
@@ -1153,6 +1160,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const animate = (time: number) => {
       animationFrameId = requestAnimationFrame(animate);
+
+      if (isPausedRef.current) return;
 
       const delta = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;

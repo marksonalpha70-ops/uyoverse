@@ -117,20 +117,29 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
     const rand = mulberry32(20260409);
 
     // Renderer
+    const initialW = Math.max(canvasWrap.clientWidth || 800, 320);
+    const initialH = Math.max(canvasWrap.clientHeight || 600, 240);
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
-    renderer.setSize(canvasWrap.clientWidth, canvasWrap.clientHeight, false);
+    renderer.setSize(initialW, initialH, false);
     canvasWrap.appendChild(renderer.domElement);
 
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x9fc7e0, 260, 820);
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      console.warn('Uyo Live Simulation WebGL context lost.');
+    };
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
 
-    const camera = new THREE.PerspectiveCamera(42, canvasWrap.clientWidth / canvasWrap.clientHeight, 1, 3000);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x9fc7e0, 400, 2200);
+
+    const camera = new THREE.PerspectiveCamera(42, initialW / initialH, 1, 3000);
     camera.position.set(260, 210, 300);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -149,7 +158,7 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
 
     const sun = new THREE.DirectionalLight(0xfff1d6, 2.2);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     const sc = sun.shadow.camera;
     sc.left = -420;
     sc.right = 420;
@@ -176,10 +185,24 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
         depthWrite: false,
         fog: false,
         uniforms: skyUniforms,
-        vertexShader:
-          'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-        fragmentShader:
-          'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float h = clamp(vP.y*1.6+0.15,0.0,1.0); gl_FragColor = vec4(mix(bottom, top, h),1.0); }',
+        vertexShader: `
+          precision highp float;
+          varying vec3 vP;
+          void main(){
+            vP = normalize(position);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          uniform vec3 top;
+          uniform vec3 bottom;
+          varying vec3 vP;
+          void main(){
+            float h = clamp(vP.y * 1.6 + 0.15, 0.0, 1.0);
+            gl_FragColor = vec4(mix(bottom, top, h), 1.0);
+          }
+        `,
       })
     );
     scene.add(sky);
@@ -1204,22 +1227,22 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
       sun.position.set(Math.cos(sunAng) * 600, Math.max(Math.sin(sunAng), -0.2) * 520 + 30, -140);
       sun.target.position.set(0, 0, 0);
 
-      let fogNear = 260;
-      let fogFar = 820;
+      let fogNear = 400;
+      let fogFar = 2200;
       let dim = 1;
       if (w === 'rain') {
         s.top.lerp(rainGrey, 0.65);
         s.bot.lerp(rainGrey, 0.6);
         s.fog.lerp(rainGrey, 0.6);
-        fogNear = 120;
-        fogFar = 560;
+        fogNear = 200;
+        fogFar = 1200;
         dim = 0.45;
       } else if (w === 'harmattan') {
         s.top.lerp(harmattan, 0.5);
         s.bot.lerp(harmattan, 0.75);
         s.fog.lerp(harmattan, 0.8);
-        fogNear = 40;
-        fogFar = 420;
+        fogNear = 100;
+        fogFar = 900;
         dim = 0.7;
       }
       skyUniforms.top.value.copy(s.top);
@@ -1256,8 +1279,8 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
     // Resize Observer
     function handleResize() {
       if (!canvasWrap || isDisposed) return;
-      const w = canvasWrap.clientWidth;
-      const h = canvasWrap.clientHeight;
+      const w = Math.max(canvasWrap.clientWidth || 800, 320);
+      const h = Math.max(canvasWrap.clientHeight || 600, 240);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -1294,7 +1317,7 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
     }
 
     // Animation Loop
-    const clock = new THREE.Clock();
+    let lastTime = performance.now();
     let elapsed = 0;
     let citizens = 1218400;
     let animId: number;
@@ -1303,7 +1326,9 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
     function tick() {
       if (isDisposed) return;
       animId = requestAnimationFrame(tick);
-      const dt = Math.min(clock.getDelta(), 0.05);
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
       elapsed += dt;
 
       const state = simStateRef.current;
@@ -1407,6 +1432,9 @@ export const UyoLiveSimulationModal: React.FC<UyoLiveSimulationModalProps> = ({
       isDisposed = true;
       cancelAnimationFrame(animId);
       resizeObserver.disconnect();
+      if (renderer.domElement) {
+        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      }
       controls.dispose();
       renderer.dispose();
       scene.clear();
