@@ -532,7 +532,62 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     scene.add(parkGroup);
 
-    // 7. Billboard signs across arterial junctions
+    // 7. 3D Architectural Monuments for all Extended Uyo City Landmarks
+    const customBuiltIds = ['plaza', 'dakkada', 'stadium', 'tropicana', 'uniuyo', 'park'];
+    UYO_LANDMARKS.forEach((lm) => {
+      if (customBuiltIds.includes(lm.id)) return;
+      const lmGroup = new THREE.Group();
+      lmGroup.position.set(lm.position[0], 0, lm.position[2]);
+
+      const lmColor = parseInt(lm.color.replace('#', '0x'), 16) || 0x1fc16b;
+      const wallMat = new THREE.MeshStandardMaterial({ color: lmColor, roughness: 0.6, metalness: 0.2 });
+      const accentMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.5 });
+      const glowLampMat = new THREE.MeshBasicMaterial({ color: lmColor });
+
+      // Ground plaza base / courtyard
+      const baseMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(26, 1.2, 22),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 })
+      );
+      baseMesh.position.y = 0.6;
+      baseMesh.receiveShadow = true;
+      lmGroup.add(baseMesh);
+
+      // Main architectural building structure
+      const mainBuilding = new THREE.Mesh(new THREE.BoxGeometry(18, lm.height, 14), wallMat);
+      mainBuilding.position.y = lm.height / 2 + 1.2;
+      mainBuilding.castShadow = true;
+      mainBuilding.receiveShadow = true;
+      lmGroup.add(mainBuilding);
+
+      // Columns / Entrance portico
+      for (let c = -1; c <= 1; c += 2) {
+        const column = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 7, 8), accentMat);
+        column.position.set(c * 6, 3.5, 8.5);
+        column.castShadow = true;
+        lmGroup.add(column);
+      }
+
+      // Roof pediment / crown
+      const roofCrown = new THREE.Mesh(new THREE.ConeGeometry(7, 4.5, 4), accentMat);
+      roofCrown.rotation.y = Math.PI / 4;
+      roofCrown.position.y = lm.height + 3.4;
+      roofCrown.castShadow = true;
+      lmGroup.add(roofCrown);
+
+      // Night beacon & point light
+      const beaconLight = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 8), glowLampMat);
+      beaconLight.position.y = lm.height + 6.5;
+      lmGroup.add(beaconLight);
+
+      const pLight = new THREE.PointLight(lmColor, 1.2, 45);
+      pLight.position.y = lm.height + 6;
+      lmGroup.add(pLight);
+
+      scene.add(lmGroup);
+    });
+
+    // 8. Billboard signs across arterial junctions
     const billboardMat = new THREE.MeshBasicMaterial({ color: 0xf26522 });
     const boardPositions = [
       { x: 30, z: -35, rot: 0.4, text: 'DAKKADA' },

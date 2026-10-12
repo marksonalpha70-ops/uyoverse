@@ -158,7 +158,7 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-slate-300">
-                          {v.tag}
+                          {v.category}
                         </span>
                         {isSelected && (
                           <span className="text-[10px] font-display font-bold text-[#22c55e] flex items-center gap-1">
@@ -173,17 +173,17 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                       </div>
 
                       <h5 className="font-display font-bold text-white text-sm">{v.name}</h5>
-                      <p className="text-xs text-[#9db8a8] mt-1 line-clamp-2">{v.desc}</p>
+                      <p className="text-xs text-[#9db8a8] mt-1 line-clamp-2">{v.description}</p>
 
                       {/* Stat Bars (Part C) */}
                       <div className="my-3 space-y-1.5 pt-2 border-t border-white/5 text-[10px]">
                         <div>
                           <div className="flex justify-between text-[#9db8a8] mb-0.5">
                             <span className="flex items-center gap-1"><Gauge className="w-3 h-3 text-[#22c55e]" /> Top Speed</span>
-                            <span className="font-mono text-white">{v.topSpeed} km/h</span>
+                            <span className="font-mono text-white">{v.topSpeedKmh} km/h</span>
                           </div>
                           <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#22c55e] rounded-full" style={{ width: `${(v.topSpeed / 220) * 100}%` }} />
+                            <div className="h-full bg-[#22c55e] rounded-full" style={{ width: `${(v.topSpeedKmh / 220) * 100}%` }} />
                           </div>
                         </div>
 
@@ -200,7 +200,7 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                         <div>
                           <div className="flex justify-between text-[#9db8a8] mb-0.5">
                             <span className="flex items-center gap-1"><Flame className="w-3 h-3 text-[#ff6a1a]" /> Acceleration</span>
-                            <span className="font-mono text-white">{v.accel}</span>
+                            <span className="font-mono text-white">{v.acceleration}</span>
                           </div>
                           <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                             <div className="h-full bg-[#ff6a1a] rounded-full" style={{ width: v.id === 'coupe' ? '95%' : v.id === 'taxi' ? '65%' : '45%' }} />
@@ -224,11 +224,11 @@ export const GarageModal: React.FC<GarageModalProps> = ({
                         </button>
                       ) : (
                         <button
-                          onClick={() => onUnlockVehicle(v.id as VehicleModel, v.priceCoins)}
+                          onClick={() => onUnlockVehicle(v.id as VehicleModel, v.costCoins)}
                           className="w-full py-2 rounded-full bg-[#fbbf24] hover:bg-[#f59e0b] text-black text-xs font-display font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
                         >
                           <Coins className="w-3.5 h-3.5" />
-                          Unlock for ₦{v.priceCoins.toLocaleString()}
+                          Unlock for ₦{v.costCoins.toLocaleString()}
                         </button>
                       )}
                     </div>

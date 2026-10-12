@@ -20,6 +20,7 @@ import { RealEstateModal } from './components/RealEstateModal';
 import { PhotoModeModal } from './components/PhotoModeModal';
 import { DailyRewardModal } from './components/DailyRewardModal';
 import { LeaderboardModal } from './components/LeaderboardModal';
+import { UyoLiveSimulationModal } from './components/UyoLiveSimulationModal';
 import { UyoverseLogo } from './components/UyoverseLogo';
 import {
   CameraMode,
@@ -204,6 +205,8 @@ export default function App() {
   const [isPhotoModeOpen, setIsPhotoModeOpen] = useState(false);
   const [isDailyRewardOpen, setIsDailyRewardOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isLiveSimulationOpen, setIsLiveSimulationOpen] = useState(false);
+  const [simFocusLandmarkId, setSimFocusLandmarkId] = useState<string | null>(null);
 
   // Daily login reward system & unlocked decals
   const [dailyRewardStatus, setDailyRewardStatus] = useState(() => getDailyRewardStatus());
@@ -471,6 +474,17 @@ export default function App() {
     showToast(`📍 Teleported to ${lm.name}!`, 'info');
   };
 
+  const handleOpenLiveSimulation = (landmarkId?: string) => {
+    setSimFocusLandmarkId(landmarkId || selectedLandmark?.id || 'plaza');
+    setIsLiveSimulationOpen(true);
+  };
+
+  const handleLocationClick = (lm: Landmark) => {
+    setSelectedLandmark(lm);
+    setSimFocusLandmarkId(lm.id);
+    setIsLiveSimulationOpen(true);
+  };
+
   const handleTrackArtifact = (art: CollectibleArtifact) => {
     setVehicleState((prev) => ({
       ...prev,
@@ -583,6 +597,14 @@ export default function App() {
             <Compass className="w-4 h-4" />
             City Guide
           </button>
+          <button
+            onClick={() => handleOpenLiveSimulation()}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-display font-bold text-[#1fc16b] hover:bg-[#1fc16b]/15 transition-all cursor-pointer"
+            title="Explore Live 3D City Digital Twin Simulation"
+          >
+            <Compass className="w-4 h-4 text-[#1fc16b] animate-spin-slow" />
+            Live Sim
+          </button>
         </nav>
 
         {/* Right Action Controls: Currency, XP/Rank, Quiet PWA, Fullscreen, Settings */}
@@ -669,6 +691,13 @@ export default function App() {
           <Compass className="w-3.5 h-3.5" />
           Guide
         </button>
+        <button
+          onClick={() => handleOpenLiveSimulation()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full flex-1 justify-center transition-all text-[#1fc16b] bg-[#1fc16b]/10 hover:bg-[#1fc16b]/20 font-bold"
+        >
+          <Compass className="w-3.5 h-3.5" />
+          Live Sim
+        </button>
       </div>
 
       {/* Floating In-Game Toast Notifications with aria-live */}
@@ -747,6 +776,7 @@ export default function App() {
                 onOpenPhotoMode={() => setIsPhotoModeOpen(true)}
                 onCloseLandmark={() => setSelectedLandmark(null)}
                 onTeleportToLandmark={handleTeleportToLandmark}
+                onOpenLiveSimulation={handleOpenLiveSimulation}
               />
             </div>
 
@@ -761,13 +791,13 @@ export default function App() {
                   return (
                     <button
                       key={lm.id}
-                      onClick={() => handleTeleportToLandmark(lm)}
+                      onClick={() => handleLocationClick(lm)}
                       className={`px-3 py-1 rounded-full border text-[11px] font-display transition-all whitespace-nowrap cursor-pointer shrink-0 truncate max-w-[170px] ${
                         isActive
                           ? 'bg-[#22c55e] text-black font-bold border-[#22c55e] shadow-sm'
                           : 'bg-black/40 hover:bg-white/10 border-white/10 text-slate-200 hover:text-white'
                       }`}
-                      title={lm.name}
+                      title={`Click to view live simulation of ${lm.name}`}
                     >
                       {lm.name}
                     </button>
@@ -793,6 +823,7 @@ export default function App() {
           <div className="p-4 sm:p-8 flex-1 overflow-y-auto">
             <CityGuideView
               onTeleportToLandmark={handleTeleportToLandmark}
+              onOpenLiveSimulation={handleOpenLiveSimulation}
               onStartPlaying={() => setActiveTab('gameplay')}
             />
           </div>
@@ -895,6 +926,13 @@ export default function App() {
         isOpen={isLeaderboardOpen}
         playerXP={playerXP}
         onClose={() => setIsLeaderboardOpen(false)}
+      />
+
+      <UyoLiveSimulationModal
+        isOpen={isLiveSimulationOpen}
+        initialLandmarkId={simFocusLandmarkId}
+        onClose={() => setIsLiveSimulationOpen(false)}
+        onDriveToLandmark={handleTeleportToLandmark}
       />
     </div>
   );

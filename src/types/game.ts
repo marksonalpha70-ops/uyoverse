@@ -1,7 +1,7 @@
 export interface Landmark {
   id: string;
   name: string;
-  tag: 'Civic' | 'Sports' | 'Leisure' | 'Skyline' | 'Education' | 'Nature' | 'Transport';
+  tag: 'Civic' | 'Sports' | 'Leisure' | 'Skyline' | 'Education' | 'Nature' | 'Transport' | 'Commerce' | 'Healthcare' | 'Culture' | 'Religious' | 'Residential';
   desc: string;
   historicalNote: string;
   position: [number, number, number];

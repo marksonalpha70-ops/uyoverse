@@ -68,6 +68,7 @@ interface GameHUDProps {
   onOpenPhotoMode: () => void;
   onCloseLandmark: () => void;
   onTeleportToLandmark?: (lm: Landmark) => void;
+  onOpenLiveSimulation?: (landmarkId?: string) => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -96,6 +97,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onOpenPhotoMode,
   onCloseLandmark,
   onTeleportToLandmark,
+  onOpenLiveSimulation,
 }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.isMuteActive());
   const [isRadioOn, setIsRadioOn] = useState(soundEngine.isRadioOn());
@@ -320,6 +322,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               <span>Shootout</span>
             </button>
 
+            {/* Live Simulation */}
+            {onOpenLiveSimulation && (
+              <button
+                onClick={() => onOpenLiveSimulation(selectedLandmark?.id || 'plaza')}
+                className="px-3 py-1.5 rounded-full text-xs font-display font-semibold flex items-center gap-1.5 bg-[#1fc16b]/15 border border-[#1fc16b]/40 text-[#1fc16b] hover:bg-[#1fc16b] hover:text-black transition-all cursor-pointer shadow-sm"
+                title="Explore Live 3D City Digital Twin Simulation"
+                aria-label="Open Live Simulation"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Live Sim</span>
+              </button>
+            )}
+
             {/* Deck */}
             <button
               onClick={onOpenObservatory}
@@ -507,6 +522,26 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <p className="text-slate-200 text-xs leading-relaxed mb-2">{selectedLandmark.desc}</p>
           <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px] text-[#ff6a1a] font-medium">
             💡 {selectedLandmark.historicalNote}
+          </div>
+          <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-white/10">
+            {onOpenLiveSimulation && (
+              <button
+                onClick={() => onOpenLiveSimulation(selectedLandmark.id)}
+                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-[#1fc16b] to-[#128a4a] text-black font-display font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-[#1fc16b]/20 hover:brightness-110 transition-all cursor-pointer"
+              >
+                <Compass className="w-4 h-4" />
+                Live 3D Simulation
+              </button>
+            )}
+            {onTeleportToLandmark && (
+              <button
+                onClick={() => onTeleportToLandmark(selectedLandmark)}
+                className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-display text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Car className="w-3.5 h-3.5 text-[#1fc16b]" />
+                Teleport
+              </button>
+            )}
           </div>
         </div>
       )}
